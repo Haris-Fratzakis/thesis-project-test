@@ -3,6 +3,7 @@ import librosa
 import numpy as np
 import scipy.stats
 
+
 # Feature Extraction Methods Used:
 #   Mel Frequency Cepstral Coefficients(MFCCs)
 #   Spectral Centroid (SC)
@@ -10,6 +11,8 @@ import scipy.stats
 #   Zero-Crossing rate (ZCR)
 #   Kurtosis
 
+# Feature Extraction Methods based on Preliminary diagnosis of COVID-19 based on cough sounds using machine learning algorithms
+# https://ieeexplore.ieee.org/abstract/document/9432324
 
 # Feature extraction function with only one method and only one hyperparameter
 def extract_features_simple(data_dir, audio_paths_part_1, audio_paths_part_2,  n_mfcc):

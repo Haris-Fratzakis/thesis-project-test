@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 import feature_extraction as feat_extr
+import training
 
 # IMPORTANT, if run on different PCs, this needs to be changed to point to the dataset directory
 # Every dataset path query is formed in relation to this variable (data_dir)
@@ -20,6 +21,9 @@ def feat_extr_simple_init(data_dir):
     # Preliminary diagnosis of COVID-19 based on cough sounds using machine learning algorithms
     # https://ieeexplore.ieee.org/abstract/document/9432324
     k_values_mfcc = [1, 2, 3, 4, 5]
+
+    # Initialize list for storing results
+    results = []
 
     # Loop over all combinations of hyperparameters
     for k_mfcc in k_values_mfcc:
@@ -45,7 +49,16 @@ def feat_extr_simple_init(data_dir):
             # Save the extracted features to the file for future use
             np.save(feature_filename, features)
 
-    print("Feature Extraction Complete")
+        # Labels
+        labels = np.array(data.covid_status)
+
+        # Train and evaluate the different classifiers outlined in training.py
+        results.append(training.classifier(features, labels, n_mfcc))
+
+    print("Process Complete")
+
+    # After the loop you can convert results to a DataFrame and analyze it
+    results_df = pd.DataFrame(results)
 
 
 # Feature Extraction Initialization Function with all five methods and only two hyperparameters
@@ -59,6 +72,9 @@ def feat_extr_init(data_dir):
     # https://ieeexplore.ieee.org/abstract/document/9432324
     k_values_mfcc = [1, 2, 3, 4, 5]
     k_values_frame = [8, 9, 10, 11, 12]
+
+    # Initialize list for storing results
+    results = []
 
     # Loop over all combinations of hyperparameters
     for k_mfcc in k_values_mfcc:
@@ -87,8 +103,17 @@ def feat_extr_init(data_dir):
                 # Save the extracted features to the file for future use
                 np.save(feature_filename, features)
 
+            # Labels
+            labels = np.array(data.covid_status)
+
+            # Train and evaluate the different classifiers outlined in training.py
+            results.append(training.classifier(features, labels, n_mfcc, frame_size))
+
         print("Current Hyperparameters Complete: k_mfcc = " + str(k_mfcc))
-    print("Feature Extraction Complete")
+    print("Process Complete")
+
+    # After the loop you can convert results to a DataFrame and analyze it
+    results_df = pd.DataFrame(results)
 
 
 # Feature Extraction Initialization Function with all five methods and all three hyperparameters
@@ -110,7 +135,7 @@ def feat_extr_with_segm_init(data_dir):
     k_values_segment = [5, 7, 10, 12, 15]
 
     # Initialize list for storing results
-    # results = []
+    results = []
 
     # Loop over all combinations of hyperparameters
     for k_mfcc in k_values_mfcc:
@@ -141,6 +166,15 @@ def feat_extr_with_segm_init(data_dir):
                     # Save the extracted features to the file for future use
                     np.save(feature_filename, features)
 
+                # Labels
+                labels = np.array(data.covid_status)
+
+                # Train and evaluate the different classifiers outlined in training.py
+                results.append(training.classifier(features, labels, n_mfcc, frame_size, n_segments))
+
             print("Current Hyperparameters Done: k_mfcc = " + str(k_mfcc) + ", k_frame = " + str(k_frame))
         print("Current Hyperparameters Complete: k_mfcc = " + str(k_mfcc))
-    print("Feature Extraction Complete")
+    print("Process Complete")
+
+    # After the loop you can convert results to a DataFrame and analyze it
+    results_df = pd.DataFrame(results)
