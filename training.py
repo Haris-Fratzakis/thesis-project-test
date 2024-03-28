@@ -75,7 +75,7 @@ def classifier(features, labels, n_mfcc, frame_size=0, n_segments=0):
         'performance_metrics_svm': performance_metrics_svm,
         'performance_metrics_mlp': performance_metrics_mlp,
         'performance_metrics_cnn': performance_metrics_cnn,
-        'performance_metrics_lstm': performance_metrics_lstm,
+        'performance_metrics_lstm': performance_metrics_lstm
     }
 
     return results
