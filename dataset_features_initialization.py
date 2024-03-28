@@ -25,8 +25,13 @@ def feat_extr_simple_init(data_dir):
     for k_mfcc in k_values_mfcc:
         n_mfcc = 14 * k_mfcc
 
-        # Name of the file where the features will be saved
+        # Name of the directory and file where the features will be saved
         features_folder = "extracted_features"
+
+        # Check if the directory exists, if not, create it
+        if not os.path.exists(features_folder):
+            os.makedirs(features_folder)
+
         feature_filename_target = "extracted_features_" + str(k_mfcc) + ".npy"
         feature_filename = os.path.join(features_folder, feature_filename_target)
 
@@ -62,8 +67,13 @@ def feat_extr_init(data_dir):
             frame_size = 2 ** k_frame
             hop_length = frame_size // 2  # 50% overlap
 
-            # Name of the file where the features will be saved
+            # Name of the directory and file where the features will be saved
             features_folder = "extracted_features"
+
+            # Check if the directory exists, if not, create it
+            if not os.path.exists(features_folder):
+                os.makedirs(features_folder)
+
             feature_filename_target = "extracted_features_" + str(k_mfcc) + str(k_frame) + ".npy"
             feature_filename = os.path.join(features_folder, feature_filename_target)
 
@@ -111,8 +121,13 @@ def feat_extr_with_segm_init(data_dir):
             for k_segment in k_values_segment:
                 n_segments = 10 * k_segment
 
-                # Name of the file where the features will be saved
+                # Name of the directory and file where the features will be saved
                 features_folder = "extracted_features"
+
+                # Check if the directory exists, if not, create it
+                if not os.path.exists(features_folder):
+                    os.makedirs(features_folder)
+
                 feature_filename_target = "extracted_features_" + str(k_mfcc) + str(k_frame) + str(k_segment) + ".npy"
                 feature_filename = os.path.join(features_folder, feature_filename_target)
 
