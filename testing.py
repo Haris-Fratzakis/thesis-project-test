@@ -30,7 +30,7 @@ def feat_extr_simple_test(data_dir):
     # Hyperparameters based on:
     # Preliminary diagnosis of COVID-19 based on cough sounds using machine learning algorithms
     # https://ieeexplore.ieee.org/abstract/document/9432324
-    k_values_mfcc = [1, 2, 3, 4, 5]
+    k_values_mfcc = [5]
 
     # Initialize list for storing results
     results = []

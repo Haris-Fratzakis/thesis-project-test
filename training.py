@@ -8,7 +8,8 @@ from sklearn.svm import SVC
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Conv2D, Flatten, Dense, Conv1D, MaxPooling1D, GlobalAveragePooling2D, LSTM
 from tensorflow.keras.applications.resnet50 import ResNet50
-from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc
+import matplotlib.pyplot as plt
 
 # Classifiers
 #   Logistic Regression (LR)
@@ -168,4 +169,23 @@ def evaluate_model(y_true, y_pred_proba, threshold=0.5):
     f1 = f1_score(y_true, y_pred)
     auc = roc_auc_score(y_true, y_pred_proba)  # AUC requires probability scores of the positive class
 
+    # roc_curve_plot(y_true, y_pred_proba)
+
     return [specificity, sensitivity, precision, accuracy, f1, auc]
+
+
+# Plot the ROC curve to investigate the metrics
+def roc_curve_plot(y_true, y_pred_proba):
+    fpr, tpr, thresholds = roc_curve(y_true, y_pred_proba)
+    roc_auc = auc(fpr, tpr)
+
+    plt.figure()
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver Operating Characteristic')
+    plt.legend(loc="lower right")
+    plt.show()
