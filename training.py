@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 #   Convolutional Neural Network (CNN)
 #   Long Short-Term Memory (LSTM)
 
-# Classifiers based on COVID-19 cough classification using machine learning and global smartphone recordings
+# Classifiers and Hyperparameters based on COVID-19 cough classification using machine learning and global smartphone recordings
 # https://www.sciencedirect.com/science/article/pii/S0010482521003668
 
 
@@ -83,12 +83,41 @@ def classifier(features, labels, n_mfcc, frame_size=0, n_segments=0):
 
 
 # Logistic Regression Model
-def lr_training(x_train, y_train):
-    # Initialize model
-    model = LogisticRegression(max_iter=1000)
-    model.fit(x_train, y_train)
+def lr_training(x_train, y_train, lr_hyper=None):
+    if lr_hyper is None:
+        lr_hyper = [[-1]]
 
-    return model
+    # create the hyperparameter grid for each penalty (l1 and l2)
+    param_grid_l1 = {
+        'penalty': ['l1']
+    }
+
+    param_grid_l2 = {
+        'penalty': ['l2']
+    }
+
+    if lr_hyper[0] != [-1]:
+        param_grid_l1['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
+        param_grid_l2['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
+
+    # Create a logistic regression model
+    logistic = LogisticRegression(solver='saga', max_iter=10000)
+
+    # Use GridSearchCV to search the hyperparameter grid with 5-fold cross validation
+    clf_1 = GridSearchCV(logistic, param_grid_l1, cv=5, verbose=0, scoring='roc_auc')
+    clf_2 = GridSearchCV(logistic, param_grid_l2, cv=5, verbose=0, scoring='roc_auc')
+
+    # Fit the model with the grid search
+    clf_1.fit(x_train, y_train)
+    clf_2.fit(x_train, y_train)
+
+    # The clf.best_estimator_ now holds the model with the best combination of hyperparameters
+    if clf_1.best_score_ > clf_2.best_score_:
+        model_lr = clf_1.best_estimator_
+    else:
+        model_lr = clf_2.best_estimator_
+
+    return model_lr
 
 
 # K-Nearest Neighbors Model
