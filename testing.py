@@ -14,9 +14,8 @@ import training
 data_dir = "E:/Storage/University/Thesis/smarty4covid/"
 
 
-# Testing function for feature_extraction_simple and LR
-# Feature Extraction Initialization Function with only one method and only one hyperparameter
-def feat_extr_simple_test(data_dir):
+# New Test function to have modular feature extraction and training functions
+def test_modular(data_dir):
     # Load the index csv
     data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
     data = pd.read_csv(data_index)
@@ -24,16 +23,22 @@ def feat_extr_simple_test(data_dir):
     # Exclude rows where 'covid_status' is 'no'
     data = data[data.covid_status != 'no']
 
+    # Further preprocessing can be done here or split to another function
+
+    # This is the modular feature extraction stage
+    k_values_mfcc = [5]
+    test_feat_extr(data, k_values_mfcc)
+
+    # This is the modular classifier training stage
+    results_df = test_classifier_mod(data, k_values_mfcc)
+
+    return results_df
+
+
+# Temporary feature extraction function
+def test_feat_extr(data, k_values_mfcc):
     # Initialize the LabelEncoder
     le = LabelEncoder()
-
-    # Hyperparameters based on:
-    # Preliminary diagnosis of COVID-19 based on cough sounds using machine learning algorithms
-    # https://ieeexplore.ieee.org/abstract/document/9432324
-    k_values_mfcc = [5]
-
-    # Initialize list for storing results
-    results = []
 
     # Loop over all combinations of hyperparameters
     for k_mfcc in k_values_mfcc:
@@ -54,10 +59,7 @@ def feat_extr_simple_test(data_dir):
         successful_indices = []
         features_list = []
         # Check if the file doesn't exist
-        if os.path.exists(feature_filename):
-            features = np.load(feature_filename)
-            labels = np.load(label_filename)
-        else:
+        if not os.path.exists(feature_filename):
             # Modified part to extract features and simultaneously filter labels
             for idx, row in data.iterrows():
                 feat = feat_extr.extract_features_simple(data_dir, row.participantid, row.submissionid, n_mfcc)
@@ -75,10 +77,37 @@ def feat_extr_simple_test(data_dir):
             np.save(feature_filename, features)
             np.save(label_filename, labels)
 
-        # Train and evaluate the different classifiers outlined in training.py
-        results.append(test_classifier(features, labels, n_mfcc))
 
-    print("Process Complete")
+# Temporary classifier function
+def test_classifier_mod(data, k_values_mfcc):
+    # Initialize list for storing results
+    results = []
+
+    # Loop over all combinations of hyperparameters
+    for k_mfcc in k_values_mfcc:
+        n_mfcc = 14 * k_mfcc
+
+        # Name of the directory and file where the features will be saved
+        features_folder = "extracted_features/feat_extr_simple"
+
+        # Check if the directory exists, if not, report error, data mismatch
+        if not os.path.exists(features_folder):
+            print("Error, data mismatch, features folder doesn't exist in test classifier")
+
+        feature_filename_target = "extracted_features_" + str(k_mfcc) + ".npy"
+        label_filename_target = "extracted_labels_" + str(k_mfcc) + ".npy"
+        feature_filename = os.path.join(features_folder, feature_filename_target)
+        label_filename = os.path.join(features_folder, label_filename_target)
+
+        # Check if the file doesn't exist
+        if os.path.exists(feature_filename):
+            features = np.load(feature_filename)
+            labels = np.load(label_filename)
+
+            # Train and evaluate the different classifiers outlined in training.py
+            results.append(test_classifier(features, labels, n_mfcc))
+        else:
+            print("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
 
     # After the loop you can convert results to a DataFrame and analyze it
     results_df = pd.DataFrame(results)
@@ -114,32 +143,36 @@ def test_classifier(features, labels, n_mfcc, frame_size=0, n_segments=0):
     return results
 
 
-results_df = feat_extr_simple_test(data_dir)
+# Function to display the results dataframe in a better way
+def test_display(results_df):
+    # Set pandas display options
+    pd.set_option('display.max_rows', None)  # or replace None with the exact number of rows you expect
+    pd.set_option('display.max_columns', None)  # or replace None with the exact number of columns you expect
+    pd.set_option('display.width', 1000)  # Adjust the width to fit your screen if necessary
 
-# Set pandas display options
-pd.set_option('display.max_rows', None)  # or replace None with the exact number of rows you expect
-pd.set_option('display.max_columns', None)  # or replace None with the exact number of columns you expect
-pd.set_option('display.width', 1000)  # Adjust the width to fit your screen if necessary
-
-# Print the entire DataFrame
-metrics = results_df['performance_metrics_lr']
-print(results_df['performance_metrics_lr'].apply(lambda x: [f"{num:.4f}" for num in x]))
+    # Print the entire DataFrame
+    metrics = results_df['performance_metrics_lr']
+    print(results_df['performance_metrics_lr'].apply(lambda x: [f"{num:.4f}" for num in x]))
 
 
-# Convert the 'array_column' to a DataFrame and expand it into separate columns
-array_df = pd.DataFrame(results_df['performance_metrics_lr'].tolist(), index=results_df.index)
+    # Convert the 'array_column' to a DataFrame and expand it into separate columns
+    array_df = pd.DataFrame(results_df['performance_metrics_lr'].tolist(), index=results_df.index)
 
-# Your specific list of names for the expanded columns
-column_names = ["specificity", "sensitivity", "precision", "accuracy", "F1", "AUC"]
+    # Your specific list of names for the expanded columns
+    column_names = ["specificity", "sensitivity", "precision", "accuracy", "F1", "AUC"]
 
-# Ensure the list length matches the number of columns to rename
-if len(column_names) == array_df.shape[1]:
-    array_df.columns = column_names
-else:
-    raise ValueError("The number of column names does not match the number of columns.")
+    # Ensure the list length matches the number of columns to rename
+    if len(column_names) == array_df.shape[1]:
+        array_df.columns = column_names
+    else:
+        raise ValueError("The number of column names does not match the number of columns.")
 
-# Join the new columns back with the original DataFrame
-df_expanded = pd.concat([results_df.drop('performance_metrics_lr', axis=1), array_df], axis=1)
+    # Join the new columns back with the original DataFrame
+    df_expanded = pd.concat([results_df.drop('performance_metrics_lr', axis=1), array_df], axis=1)
 
-# Save the expanded DataFrame to a CSV file
-df_expanded.to_csv('my_dataframe_expanded.csv', index=False)
+    # Save the expanded DataFrame to a CSV file
+    df_expanded.to_csv('my_dataframe_expanded.csv', index=False)
+
+
+results_df = test_modular(data_dir)
+test_display(results_df)
