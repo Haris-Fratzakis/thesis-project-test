@@ -26,8 +26,19 @@ def test_modular(data_dir):
     # Further preprocessing can be done here or split to another function
 
     # This is the modular feature extraction stage
-    k_values_mfcc = [1, 2, 3, 4, 5]
-    test_feat_extr(data, k_values_mfcc)
+
+    # Hyperparameter values based on:
+    # Preliminary diagnosis of COVID-19 based on cough sounds using machine learning algorithms
+    # https://ieeexplore.ieee.org/abstract/document/9432324
+    # k_values_mfcc = [1, 2, 3, 4, 5]
+    # k_values_frame = [8, 9, 10, 11, 12]
+    # k_values_segment = [5, 7, 10, 12, 15]
+
+    # Test
+    k_values_mfcc = [5]
+    k_values_frame = [8, 9, 10, 11, 12]
+    k_values_segment = None
+    test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
@@ -114,6 +125,7 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                     if not os.path.exists(feature_filename):
                         # Modified part to extract features and simultaneously filter labels
                         for idx, row in data.iterrows():
+                            # TODO Fix error
                             feat = feat_extr.extract_features(data_dir, row.participantid, row.submissionid, n_mfcc, frame_size, hop_length)
                             if feat is not False:
                                 features_list.append(feat)
@@ -177,7 +189,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
     if k_values_segment is None:
         k_values_segment = [-1]
     if models_used is None:
-        models_used = [1, 0, 0, 0, 0, 0]
+        models_used = [0, 0, 0, 0, 0, 0]
 
     # Initialize list for storing results
     results = []
@@ -276,6 +288,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
 def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, models_used=None):
     if models_used is None:
         models_used = [0, 0, 0, 0, 0, 0]
+        print("No model specified")
 
     # Split dataset
     x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
