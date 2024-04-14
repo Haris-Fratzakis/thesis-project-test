@@ -10,7 +10,6 @@ import training
 # Dataset directory
 data_dir = "E:/Storage/University/Thesis/smarty4covid/"
 
-
 # Feature Extraction Initialization Function with only one method and only one hyperparameter
 def feat_extr_simple_init(data_dir):
     # Load the index csv
@@ -70,7 +69,7 @@ def feat_extr_init(data_dir):
     # Hyperparameters based on:
     # Preliminary diagnosis of COVID-19 based on cough sounds using machine learning algorithms
     # https://ieeexplore.ieee.org/abstract/document/9432324
-    k_values_mfcc = [1, 2, 3, 4, 5]
+    k_values_mfcc = [5]
     k_values_frame = [8, 9, 10, 11, 12]
 
     # Initialize list for storing results
@@ -173,3 +172,5 @@ def feat_extr_with_segm_init(data_dir):
 
     # After the loop you can convert results to a DataFrame and analyze it
     results_df = pd.DataFrame(results)
+
+feat_extr_init(data_dir)

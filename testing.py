@@ -43,9 +43,11 @@ def test_modular(data_dir):
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [1, 0, 0, 0, 0, 0]
+    models_used = [0, 0, 1, 0, 0, 0]
+    # TODO Fix LR and SVM bug of never converging to a solution
     # This is the modular classifier training stage
-    results_df = test_classifier_mod(k_values_mfcc, models_used=models_used)
+    results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used)
+    print(results_df)
 
     return results_df
 
@@ -105,7 +107,7 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                 frame_size = 2 ** k_frame
                 hop_length = frame_size // 2  # 50% overlap
 
-                # Feature Extraction Initialization Function with all five methods and only two hyperparameters
+                # Feature Extraction Initialization Function with four methods and only two hyperparameters
                 if k_values_segment == [-1]:
                     # Name of the directory and file where the features will be saved
                     features_folder = "extracted_features/feat_extr"
@@ -114,8 +116,8 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                     if not os.path.exists(features_folder):
                         os.makedirs(features_folder)
 
-                    feature_filename_target = "extracted_features_" + str(k_mfcc) + str(k_frame) + ".npy"
-                    label_filename_target = "extracted_labels_" + str(k_mfcc) + str(k_frame) + ".npy"
+                    feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
+                    label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
                     feature_filename = os.path.join(features_folder, feature_filename_target)
                     label_filename = os.path.join(features_folder, label_filename_target)
 
@@ -153,8 +155,8 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                         if not os.path.exists(features_folder):
                             os.makedirs(features_folder)
 
-                        feature_filename_target = "extracted_features_" + str(k_mfcc) + str(k_frame) + str(k_segment) + ".npy"
-                        label_filename_target = "extracted_labels_" + str(k_mfcc) + str(k_frame) + str(k_segment) + ".npy"
+                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
+                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
                         feature_filename = os.path.join(features_folder, feature_filename_target)
                         label_filename = os.path.join(features_folder, label_filename_target)
 
@@ -235,8 +237,8 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                     if not os.path.exists(features_folder):
                         print("Error, data mismatch, features folder doesn't exist in test classifier")
 
-                    feature_filename_target = "extracted_features_" + str(k_mfcc) + str(k_frame) + ".npy"
-                    label_filename_target = "extracted_labels_" + str(k_mfcc) + str(k_frame) + ".npy"
+                    feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
+                    label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
                     feature_filename = os.path.join(features_folder, feature_filename_target)
                     label_filename = os.path.join(features_folder, label_filename_target)
 
@@ -263,8 +265,8 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                         if not os.path.exists(features_folder):
                             print("Error, data mismatch, features folder doesn't exist in test classifier")
 
-                        feature_filename_target = "extracted_features_" + str(k_mfcc) + str(k_frame) + str(k_segment) + ".npy"
-                        label_filename_target = "extracted_labels_" + str(k_mfcc) + str(k_frame) + str(k_segment) + ".npy"
+                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
+                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
                         feature_filename = os.path.join(features_folder, feature_filename_target)
                         label_filename = os.path.join(features_folder, label_filename_target)
 
@@ -309,7 +311,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # LR
     if models_used[0] == 1:
         # lr_hyper refers to the hyperparameters for lr
-        # first slot is C, the inverse of regularization strength
+        # first slot is C, the regularization strength
         # Syntax: [a,b,c], Usage: 'C': np.logspace(a, b, c)
 
         lr_hyper = [[-7, 7, 15]]
@@ -323,6 +325,40 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         results_model['performance_metrics_lr'] = performance_metrics_lr
 
+    if models_used[1] == 1:
+        # knn_hyper refers to the hyperparameters for knn
+        # first slot is number of neighbors
+        # Syntax: [a,b,c], Usage: 'n_neighbors': list(range(a, b, c)),
+        # second slot is leaf size
+        # Syntax: [a,b,c], Usage: 'leaf_size': list(range(a, b, c)),
+
+        knn_hyper = [[10, 101, 10], [5, 31, 5]]
+        # Training
+        model_knn = training.knn_training(x_train, y_train, knn_hyper)
+
+        # Evaluating
+        y_pred_proba = model_knn.predict_proba(x_test)[:, 1]
+        performance_metrics_knn = training.evaluate_model(y_test, y_pred_proba)
+
+        results_model['performance_metrics_knn'] = performance_metrics_knn
+
+    if models_used[2] == 1:
+        # svm_hyper refers to the hyperparameters for svm
+        # first slot is C, the regularization strength
+        # Syntax: [a,b,c], Usage: 'n_neighbors': list(range(a, b, c)),
+        # second slot is gamma, which controls the kernel coefficient
+        # Syntax: [a,b,c], Usage: 'C': np.logspace(a, b, c)
+
+        svm_hyper = [[-7, 7, 15], [-7, 7, 15]]
+        # Training
+        model_svm = training.svm_training(x_train, y_train, svm_hyper)
+
+        # Evaluating
+        y_pred_proba = model_svm.predict_proba(x_test)[:, 1]
+        performance_metrics_svm = training.evaluate_model(y_test, y_pred_proba)
+
+        results_model['performance_metrics_svm'] = performance_metrics_svm
+
     # Predict and evaluate all models
 
     return results_model
@@ -331,8 +367,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 # Function to display the results dataframe in a better way
 def test_display(results_df):
     # Print the entire DataFrame
-    if 'performance_metrics_lr' in results_df:
-        metrics = results_df['performance_metrics_lr']
+    if 'performance_metrics_svm' in results_df:
+        metrics = results_df['performance_metrics_svm']
         print(metrics.apply(lambda x: [f"{num:.4f}" for num in x]))
 
         # Convert the 'array_column' to a DataFrame and expand it into separate columns
@@ -348,7 +384,7 @@ def test_display(results_df):
             raise ValueError("The number of column names does not match the number of columns.")
 
         # Join the new columns back with the original DataFrame
-        df_expanded = pd.concat([results_df.drop('performance_metrics_lr', axis=1), array_df], axis=1)
+        df_expanded = pd.concat([results_df.drop('performance_metrics_svm', axis=1), array_df], axis=1)
 
         # Save the expanded DataFrame to a CSV file
         df_expanded.to_csv('my_dataframe_expanded.csv', index=False)

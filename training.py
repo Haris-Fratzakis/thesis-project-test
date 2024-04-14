@@ -103,6 +103,8 @@ def lr_training(x_train, y_train, lr_hyper=None):
     # Create a logistic regression model
     logistic = LogisticRegression(solver='saga', max_iter=10000)
 
+    print("LR Classifier Start")
+
     # Use GridSearchCV to search the hyperparameter grid with 5-fold cross validation
     clf_1 = GridSearchCV(logistic, param_grid_l1, cv=5, verbose=0, scoring='roc_auc')
     clf_2 = GridSearchCV(logistic, param_grid_l2, cv=5, verbose=0, scoring='roc_auc')
@@ -121,19 +123,48 @@ def lr_training(x_train, y_train, lr_hyper=None):
 
 
 # K-Nearest Neighbors Model
-def knn_training(x_train, y_train):
-    # Initialize model
-    model_knn = KNeighborsClassifier(n_neighbors=5)
-    model_knn.fit(x_train, y_train)
+def knn_training(x_train, y_train, knn_hyper):
+    param_grid = {
+        'n_neighbors': list(range(knn_hyper[0][0], knn_hyper[0][1], knn_hyper[0][1])),
+        'leaf_size': list(range(knn_hyper[1][0], knn_hyper[1][1], knn_hyper[1][2]))
+    }
+
+    # Create a KNN classifier instance
+    knn = KNeighborsClassifier()
+
+    print("kNN Classifier Start")
+
+    # Create a GridSearchCV instance
+    grid_search = GridSearchCV(knn, param_grid, cv=5, verbose=0, scoring='roc_auc')  # cv=5 for 5-fold cross-validation
+
+    # Fit the GridSearchCV instance to the training data
+    grid_search.fit(x_train, y_train)
+
+    # Retrieve the best estimator (model with the best hyperparameters)
+    model_knn = grid_search.best_estimator_
 
     return model_knn
 
 
 # Support Vector Machines Model
-def svm_training(x_train, y_train):
-    # Initialize model
-    model_svm = SVC(kernel='linear')  # You can try different kernels like 'rbf'
-    model_svm.fit(x_train, y_train)
+def svm_training(x_train, y_train, svm_hyper):
+    param_grid = {
+        'C': np.logspace(svm_hyper[0][0], svm_hyper[0][1], svm_hyper[0][2]),
+        'gamma': np.logspace(svm_hyper[1][0], svm_hyper[1][1], svm_hyper[1][2]),
+    }
+
+    # Create an SVM classifier instance
+    svm = SVC()
+
+    print("SVM Classifier Start")
+    # Create a GridSearchCV instance
+    grid_search = GridSearchCV(svm, param_grid, cv=5, verbose=0, scoring='roc_auc')  # cv=5 for 5-fold cross-validation
+
+    # Fit the GridSearchCV instance to the training data
+    grid_search.fit(x_train, y_train)
+
+    # Retrieve the best estimator (model with the best hyperparameters)
+    model_svm = grid_search.best_estimator_
 
     return model_svm
 
