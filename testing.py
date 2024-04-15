@@ -35,19 +35,27 @@ def test_modular(data_dir):
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [3]
-    k_values_frame = [8, 9, 10, 11, 12]
-    k_values_segment = None
+    k_values_mfcc = [5]
+    k_values_frame = [8]
+    k_values_segment = [5, 7, 10, 12, 15]
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [1, 0, 0, 0, 0, 0]
-    # TODO Fix LR and SVM bug of never converging to a solution
+    models_used = [0, 1, 0, 0, 0, 0]
+    # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
     results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used)
-    print(results_df)
+    # print(results_df)
+
+    # convert models_used values to their names
+    for idx in range(len(models_used)):
+        if models_used[idx] == 1:
+            models_used[idx] = models_name_conv(idx)
+
+    print(models_used)
+    test_display(results_df, models_used)
 
     return results_df
 
@@ -364,31 +372,47 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     return results_model
 
 
+# Convert models_used values to their names
+def models_name_conv(model):
+    switcher = {
+        0: "performance_metrics_lr",
+        1: "performance_metrics_knn",
+        2: "performance_metrics_svm",
+    }
+
+    # get() method of dictionary data type returns
+    # value of passed argument if it is present
+    # in dictionary otherwise second argument will
+    # be assigned as default value of passed argument
+    return switcher.get(model, "Model Name Mismatch")
+
+
 # Function to display the results dataframe in a better way
-def test_display(results_df):
+def test_display(results_df, models_used_str):
     # Print the entire DataFrame
-    if 'performance_metrics_lr' in results_df:
-        metrics = results_df['performance_metrics_lr']
-        print(metrics.apply(lambda x: [f"{num:.4f}" for num in x]))
+    for perf_res in models_used_str:
+        if perf_res in results_df:
+            print(perf_res)
+            metrics = results_df[perf_res]
+            print(metrics.apply(lambda x: [f"{num:.4f}" for num in x]))
 
-        # Convert the 'array_column' to a DataFrame and expand it into separate columns
-        array_df = pd.DataFrame(metrics.tolist(), index=results_df.index)
+            # Convert the 'array_column' to a DataFrame and expand it into separate columns
+            array_df = pd.DataFrame(metrics.tolist(), index=results_df.index)
 
-        # Your specific list of names for the expanded columns
-        column_names = ["specificity", "sensitivity", "precision", "accuracy", "F1", "AUC"]
+            # Your specific list of names for the expanded columns
+            column_names = [perf_res + "_specificity", perf_res + "_sensitivity", perf_res + "_precision", perf_res + "_accuracy", perf_res + "_F1", perf_res + "_AUC"]
 
-        # Ensure the list length matches the number of columns to rename
-        if len(column_names) == array_df.shape[1]:
-            array_df.columns = column_names
-        else:
-            raise ValueError("The number of column names does not match the number of columns.")
+            # Ensure the list length matches the number of columns to rename
+            if len(column_names) == array_df.shape[1]:
+                array_df.columns = column_names
+            else:
+                raise ValueError("The number of column names does not match the number of columns.")
 
-        # Join the new columns back with the original DataFrame
-        df_expanded = pd.concat([results_df.drop('performance_metrics_lr', axis=1), array_df], axis=1)
+            # Join the new columns back with the original DataFrame
+            results_df = pd.concat([results_df.drop(perf_res, axis=1), array_df], axis=1)
 
-        # Save the expanded DataFrame to a CSV file
-        df_expanded.to_csv('my_dataframe_expanded.csv', index=False)
+            # Save the expanded DataFrame to a CSV file
+            results_df.to_csv('my_dataframe_expanded.csv', index=False)
 
 
 results_df = test_modular(data_dir)
-test_display(results_df)
