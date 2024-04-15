@@ -173,4 +173,5 @@ def feat_extr_with_segm_init(data_dir):
     # After the loop you can convert results to a DataFrame and analyze it
     results_df = pd.DataFrame(results)
 
+
 feat_extr_init(data_dir)

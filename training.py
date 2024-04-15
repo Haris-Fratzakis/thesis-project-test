@@ -8,8 +8,10 @@ from sklearn.svm import SVC
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Conv2D, Flatten, Dense, Conv1D, MaxPooling1D, GlobalAveragePooling2D, LSTM
 from tensorflow.keras.applications.resnet50 import ResNet50
-from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, \
+    roc_curve, auc
 import matplotlib.pyplot as plt
+
 
 # Classifiers
 #   Logistic Regression (LR)
@@ -97,7 +99,7 @@ def lr_training(x_train, y_train, lr_hyper=None):
     }
 
     if lr_hyper[0] != [-1]:
-        param_grid_l1['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
+        # param_grid_l1['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
         param_grid_l2['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
 
     # Create a logistic regression model
@@ -106,18 +108,20 @@ def lr_training(x_train, y_train, lr_hyper=None):
     print("LR Classifier Start")
 
     # Use GridSearchCV to search the hyperparameter grid with 5-fold cross validation
-    clf_1 = GridSearchCV(logistic, param_grid_l1, cv=5, verbose=0, scoring='roc_auc')
+    #clf_1 = GridSearchCV(logistic, param_grid_l1, cv=5, verbose=0)
     clf_2 = GridSearchCV(logistic, param_grid_l2, cv=5, verbose=0, scoring='roc_auc')
 
     # Fit the model with the grid search
-    clf_1.fit(x_train, y_train)
+    # clf_1.fit(x_train, y_train)
     clf_2.fit(x_train, y_train)
 
     # The clf.best_estimator_ now holds the model with the best combination of hyperparameters
-    if clf_1.best_score_ > clf_2.best_score_:
-        model_lr = clf_1.best_estimator_
-    else:
-        model_lr = clf_2.best_estimator_
+    # if clf_1.best_score_ > clf_2.best_score_:
+    #     model_lr = clf_1.best_estimator_
+    # else:
+    #     model_lr = clf_2.best_estimator_
+
+    model_lr = clf_2.best_estimator_
 
     return model_lr
 

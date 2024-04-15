@@ -35,7 +35,7 @@ def test_modular(data_dir):
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [5]
+    k_values_mfcc = [3]
     k_values_frame = [8, 9, 10, 11, 12]
     k_values_segment = None
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment)
@@ -43,7 +43,7 @@ def test_modular(data_dir):
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [0, 0, 1, 0, 0, 0]
+    models_used = [1, 0, 0, 0, 0, 0]
     # TODO Fix LR and SVM bug of never converging to a solution
     # This is the modular classifier training stage
     results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used)
@@ -367,8 +367,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 # Function to display the results dataframe in a better way
 def test_display(results_df):
     # Print the entire DataFrame
-    if 'performance_metrics_svm' in results_df:
-        metrics = results_df['performance_metrics_svm']
+    if 'performance_metrics_lr' in results_df:
+        metrics = results_df['performance_metrics_lr']
         print(metrics.apply(lambda x: [f"{num:.4f}" for num in x]))
 
         # Convert the 'array_column' to a DataFrame and expand it into separate columns
@@ -384,7 +384,7 @@ def test_display(results_df):
             raise ValueError("The number of column names does not match the number of columns.")
 
         # Join the new columns back with the original DataFrame
-        df_expanded = pd.concat([results_df.drop('performance_metrics_svm', axis=1), array_df], axis=1)
+        df_expanded = pd.concat([results_df.drop('performance_metrics_lr', axis=1), array_df], axis=1)
 
         # Save the expanded DataFrame to a CSV file
         df_expanded.to_csv('my_dataframe_expanded.csv', index=False)
