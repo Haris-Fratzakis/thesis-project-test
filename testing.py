@@ -412,6 +412,12 @@ def test_display(results_df, models_used_str):
             # Join the new columns back with the original DataFrame
             results_df = pd.concat([results_df.drop(perf_res, axis=1), array_df], axis=1)
 
+            metrics_folder = "./model_metrics"
+
+            # Check if the directory exists, if not, create it
+            if not os.path.exists(metrics_folder):
+                os.makedirs(metrics_folder)
+
             # Get the current date
             current_date = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
