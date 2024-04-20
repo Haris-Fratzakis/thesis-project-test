@@ -36,7 +36,7 @@ def test_modular(data_dir):
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [5]
+    k_values_mfcc = [1, 2, 3, 4, 5]
     k_values_frame = [8, 9, 10, 11, 12]
     k_values_segment = None
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment)
@@ -413,7 +413,7 @@ def test_display(results_df, models_used_str):
             results_df = pd.concat([results_df.drop(perf_res, axis=1), array_df], axis=1)
 
             # Get the current date
-            current_date = datetime.now().strftime("%Y_%m_%d")
+            current_date = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
             # Save the expanded DataFrame to a CSV file
             results_df.to_csv('./model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
