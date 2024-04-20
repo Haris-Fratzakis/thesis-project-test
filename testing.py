@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelEncoder
+from datetime import datetime
 
 import feature_extraction as feat_extr
 import training
@@ -36,8 +37,8 @@ def test_modular(data_dir):
 
     # Test
     k_values_mfcc = [5]
-    k_values_frame = [8]
-    k_values_segment = [5, 7, 10, 12, 15]
+    k_values_frame = [8, 9, 10, 11, 12]
+    k_values_segment = None
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
@@ -411,8 +412,15 @@ def test_display(results_df, models_used_str):
             # Join the new columns back with the original DataFrame
             results_df = pd.concat([results_df.drop(perf_res, axis=1), array_df], axis=1)
 
+            # Get the current date
+            current_date = datetime.now().strftime("%Y_%m_%d")
+
             # Save the expanded DataFrame to a CSV file
-            results_df.to_csv('my_dataframe_expanded.csv', index=False)
+            results_df.to_csv('./model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
 
 
+testi = "E:/Storage/Work/thesisProjectTest/extracted_features/feat_extr/extracted_features_1_8.npy"
+test = np.load(testi)
+# print("size" + str(np.size(testi[0])))
 results_df = test_modular(data_dir)
+print(test)
