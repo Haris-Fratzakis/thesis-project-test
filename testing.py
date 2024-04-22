@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelEncoder
+from imblearn.over_sampling import RandomOverSampler
 from datetime import datetime
 
 import feature_extraction as feat_extr
@@ -44,7 +45,7 @@ def test_modular(data_dir):
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [0, 1, 0, 0, 0, 0]
+    models_used = [1, 1, 0, 0, 0, 0]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
     results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used)
@@ -55,7 +56,7 @@ def test_modular(data_dir):
         if models_used[idx] == 1:
             models_used[idx] = models_name_conv(idx)
 
-    print(models_used)
+    print("Models Used List: " + str(models_used))
     test_display(results_df, models_used)
 
     return results_df
@@ -301,8 +302,23 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         models_used = [0, 0, 0, 0, 0, 0]
         print("No model specified")
 
+    # Check class distribution
+    print("Before resampling:")
+    print("Class 0:", sum(labels == 0))
+    print("Class 1:", sum(labels == 1))
+
+    # Apply Random Over Sampling
+    ros = RandomOverSampler(random_state=42)
+
+    features_resampled, labels_resampled = ros.fit_resample(features, labels)
+
+    # Check new class distribution
+    print("After resampling:")
+    print("Class 0:", sum(labels_resampled == 0))
+    print("Class 1:", sum(labels_resampled == 1))
+
     # Split dataset
-    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(features_resampled, labels_resampled, test_size=0.2, random_state=42)
 
     # Standardize features
     scaler = StandardScaler()
@@ -391,6 +407,7 @@ def models_name_conv(model):
 # Function to display the results dataframe in a better way
 def test_display(results_df, models_used_str):
     # Print the entire DataFrame
+    print("Metrics Used: [specificity, sensitivity, precision, accuracy, F1, AUC]")
     for perf_res in models_used_str:
         if perf_res in results_df:
             print(perf_res)
@@ -425,8 +442,4 @@ def test_display(results_df, models_used_str):
             results_df.to_csv('./model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
 
 
-testi = "E:/Storage/Work/thesisProjectTest/extracted_features/feat_extr/extracted_features_1_8.npy"
-test = np.load(testi)
-# print("size" + str(np.size(testi[0])))
 results_df = test_modular(data_dir)
-print(test)

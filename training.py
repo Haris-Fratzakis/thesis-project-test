@@ -158,7 +158,7 @@ def svm_training(x_train, y_train, svm_hyper):
     }
 
     # Create an SVM classifier instance
-    svm = SVC()
+    svm = SVC(max_iter=10000)
 
     print("SVM Classifier Start")
     # Create a GridSearchCV instance
