@@ -406,6 +406,7 @@ def models_name_conv(model):
 
 # Function to display the results dataframe in a better way
 def test_display(results_df, models_used_str):
+    # TODO Add the hyperparameters of the models to the excel
     # Print the entire DataFrame
     print("Metrics Used: [specificity, sensitivity, precision, accuracy, F1, AUC]")
     for perf_res in models_used_str:
