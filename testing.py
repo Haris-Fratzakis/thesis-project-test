@@ -356,7 +356,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
     # Balance dataset
     # Methods: Resampling, SMOTE
-    balance_method = "SMOTE"
+    balance_method = "Resampling"
     features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
     # Split dataset
@@ -383,12 +383,15 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         lr_hyper = [[-7, 7, 15]]
         # Training
-        model_lr = training.lr_training(x_train, y_train, lr_hyper)
+        model_lr, model_lr_hyper = training.lr_training(x_train, y_train, lr_hyper)
         # model_lr = training.lr_training(x_train, y_train)
 
         # Evaluating
         y_pred_proba = model_lr.predict_proba(x_test)[:, 1]
         performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+
+        # Saving the best hyperparameters
+        results_model['Hyper_LR__C'] = model_lr_hyper["C"]
 
         results_model['performance_metrics_lr'] = performance_metrics_lr
 
@@ -401,11 +404,15 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         knn_hyper = [[10, 101, 10], [5, 31, 5]]
         # Training
-        model_knn = training.knn_training(x_train, y_train, knn_hyper)
+        model_knn, model_knn_hyper = training.knn_training(x_train, y_train, knn_hyper)
 
         # Evaluating
         y_pred_proba = model_knn.predict_proba(x_test)[:, 1]
         performance_metrics_knn = training.evaluate_model(y_test, y_pred_proba)
+
+        # Saving the best hyperparameters
+        results_model['Hyper_kNN__n_neighbors'] = model_knn_hyper["n_neighbors"]
+        results_model['Hyper_kNN__leaf_size'] = model_knn_hyper["leaf_size"]
 
         results_model['performance_metrics_knn'] = performance_metrics_knn
 
@@ -418,11 +425,14 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         svm_hyper = [[-7, 7, 15], [-7, 7, 15]]
         # Training
-        model_svm = training.svm_training(x_train, y_train, svm_hyper)
+        model_svm, model_svm_hyper = training.svm_training(x_train, y_train, svm_hyper)
 
         # Evaluating
         y_pred_proba = model_svm.predict_proba(x_test)[:, 1]
         performance_metrics_svm = training.evaluate_model(y_test, y_pred_proba)
+
+        # Saving the best hyperparameters
+        results_model['Hyper_SVM__C'] = model_svm_hyper["C"]
 
         results_model['performance_metrics_svm'] = performance_metrics_svm
 

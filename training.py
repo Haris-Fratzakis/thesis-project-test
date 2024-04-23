@@ -122,17 +122,16 @@ def lr_training(x_train, y_train, lr_hyper=None):
     #     model_lr = clf_2.best_estimator_
 
     model_lr = clf_2.best_estimator_
-
-    return model_lr
+    model_lr_hyper = clf_2.best_params_
+    return model_lr, model_lr_hyper
 
 
 # K-Nearest Neighbors Model
 def knn_training(x_train, y_train, knn_hyper):
     param_grid = {
-        'n_neighbors': list(range(knn_hyper[0][0], knn_hyper[0][1], knn_hyper[0][1])),
+        'n_neighbors': list(range(knn_hyper[0][0], knn_hyper[0][1], knn_hyper[0][2])),
         'leaf_size': list(range(knn_hyper[1][0], knn_hyper[1][1], knn_hyper[1][2]))
     }
-
     # Create a KNN classifier instance
     knn = KNeighborsClassifier()
 
@@ -146,8 +145,9 @@ def knn_training(x_train, y_train, knn_hyper):
 
     # Retrieve the best estimator (model with the best hyperparameters)
     model_knn = grid_search.best_estimator_
+    model_knn_hyper = grid_search.best_params_
 
-    return model_knn
+    return model_knn, model_knn_hyper
 
 
 # Support Vector Machines Model
@@ -169,8 +169,9 @@ def svm_training(x_train, y_train, svm_hyper):
 
     # Retrieve the best estimator (model with the best hyperparameters)
     model_svm = grid_search.best_estimator_
+    model_svm_hyper = grid_search.best_params_
 
-    return model_svm
+    return model_svm, model_svm_hyper
 
 
 # Multi-layer Perceptron Model
