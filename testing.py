@@ -4,7 +4,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelEncoder
-from imblearn.over_sampling import RandomOverSampler
+from imblearn.over_sampling import RandomOverSampler, SMOTE
+from imblearn.under_sampling import RandomUnderSampler
 from datetime import datetime
 
 import feature_extraction as feat_extr
@@ -45,7 +46,7 @@ def test_modular(data_dir):
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [1, 1, 0, 0, 0, 0]
+    models_used = [0, 1, 0, 0, 0, 0]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
     results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used)
@@ -146,7 +147,6 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
 
                         # Filter labels based on successful feature extraction
                         labels = np.array(data.loc[successful_indices, 'covid_status'])
-
                         # Convert labels to a consistent numerical format
                         labels = le.fit_transform(labels)
 
@@ -296,29 +296,71 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
     return results_df
 
 
+# Balancing Dataset Function
+def balance_dataset(features, labels, balance_method):
+    # Check class distribution
+    # Class 0: Negative Covid
+    # Class 1: Positive Covid
+    print("Before balancing:")
+    print("Class 0:", sum(labels == 0))
+    print("Class 1:", sum(labels == 1))
+
+    match balance_method:
+        case "Resampling":
+            # Apply Random Over Sampling and Under Sampling
+            # Define the resampling strategy
+            over = RandomOverSampler(sampling_strategy=0.8)  # Oversample the minority to have 50% of the majority class
+            under = RandomUnderSampler(sampling_strategy=1.0)  # Undersample the majority to have equal to the minority
+
+            # First apply oversampling
+            features_oversampled, labels_oversampled = over.fit_resample(features, labels)
+
+            print("After oversampling:")
+            print("Class 0:", sum(labels_oversampled == 0))
+            print("Class 1:", sum(labels_oversampled == 1))
+
+            # Then apply undersampling
+            features_combined, labels_combined = under.fit_resample(features_oversampled, labels_oversampled)
+
+            # Check new class distribution
+            print("After undersampling:")
+            print("Class 0:", sum(labels_combined == 0))
+            print("Class 1:", sum(labels_combined == 1))
+
+            return features_combined, labels_combined
+        case "SMOTE":
+            # Check class distribution before SMOTE
+            print("Before SMOTE:")
+            print("Class 0:", sum(labels == 0))  # Minority class
+            print("Class 1:", sum(labels == 1))  # Majority class
+
+            # Apply SMOTE
+            smote = SMOTE(random_state=42)
+            features_res, labels_res = smote.fit_resample(features, labels)
+
+            # Check class distribution after SMOTE
+            print("After SMOTE:")
+            print("Class 0:", sum(labels_res == 0))
+            print("Class 1:", sum(labels_res == 1))
+
+            return features_res, labels_res
+        case _:
+            return False, False
+
+
 # Test training function
 def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, models_used=None):
     if models_used is None:
         models_used = [0, 0, 0, 0, 0, 0]
         print("No model specified")
 
-    # Check class distribution
-    print("Before resampling:")
-    print("Class 0:", sum(labels == 0))
-    print("Class 1:", sum(labels == 1))
-
-    # Apply Random Over Sampling
-    ros = RandomOverSampler(random_state=42)
-
-    features_resampled, labels_resampled = ros.fit_resample(features, labels)
-
-    # Check new class distribution
-    print("After resampling:")
-    print("Class 0:", sum(labels_resampled == 0))
-    print("Class 1:", sum(labels_resampled == 1))
+    # Balance dataset
+    # Methods: Resampling, SMOTE
+    balance_method = "SMOTE"
+    features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
     # Split dataset
-    x_train, x_test, y_train, y_test = train_test_split(features_resampled, labels_resampled, test_size=0.2, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(features_combined, labels_combined, test_size=0.2, random_state=42)
 
     # Standardize features
     scaler = StandardScaler()
