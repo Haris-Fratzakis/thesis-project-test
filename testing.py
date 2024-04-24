@@ -493,7 +493,7 @@ def test_display(results_df, models_used_str):
             current_date = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
             # Save the expanded DataFrame to a CSV file
-            results_df.to_csv('./model_metrics/my_dataframe_expanded_' + current_date + "_" + results_df["dataset_balance_method"] + '.csv', index=False)
+            results_df.to_csv('./model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
 
 
 results_df = test_modular(data_dir)
