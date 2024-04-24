@@ -31,6 +31,7 @@ def extract_features(data_dir, audio_paths_part_1, audio_paths_part_2, n_mfcc, f
     file_path = os.path.join(data_dir, audio_paths_part_1, audio_paths_part_2, "audio.cough.mp3")
     # Check if the directory exists, if not, create it
     if os.path.exists(file_path):
+        # TODO fix the audio load just like it happens in extract_features_simple
         audio, sample_rate = librosa.load(file_path, sr=None)
         mfccs = librosa.feature.mfcc(y=audio, sr=sample_rate, n_mfcc=n_mfcc, n_fft=frame_size, hop_length=hop_length)
         sc = librosa.feature.spectral_centroid(y=audio, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
