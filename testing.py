@@ -492,6 +492,21 @@ def test_display(results_df, models_used_str):
             # Get the current date
             current_date = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
+            # Find the model with the best ROC curve for each model type used
+            max_row = results_df.loc[results_df[perf_res + "_AUC"].idxmax()]
+            print(max_row)
+
+            # Create a blank row to separate the best results
+            first_blank_row = pd.DataFrame([{}], columns=results_df.columns)
+
+            # Create a second blank row to separate the best results
+            # Adding the max row label of each model used
+            second_blank_row = pd.DataFrame({results_df.columns[0]: ["Best Model for " + perf_res]}, index=[0])
+            second_blank_row = second_blank_row.reindex(columns=results_df.columns, fill_value='')
+
+            # Append the blank rows followed by the max row to the DataFrame
+            results_df = pd.concat([results_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])], ignore_index=True)
+
             # Save the expanded DataFrame to a CSV file
             results_df.to_csv('./model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
 
