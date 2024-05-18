@@ -15,11 +15,15 @@ import scipy.stats
 # https://ieeexplore.ieee.org/abstract/document/9432324
 
 # Feature extraction function with only one method and only one hyperparameter
-def extract_features_simple(data_dir, audio_paths_part_1, audio_paths_part_2,  n_mfcc):
-    file_path = os.path.join(data_dir, audio_paths_part_1, audio_paths_part_2, "audio.cough.mp3")
+def extract_features_simple(data_dir, audio_path, audio_name, n_mfcc):
+    file_path = os.path.join(data_dir, audio_path, audio_name)
     # Check if the directory exists, if not, create it
     if os.path.exists(file_path):
+        if os.path.getsize(file_path) <= 2048:
+            print(f"The audio file {file_path} is empty. Skipping this file.")
+            return False
         audio, sample_rate = librosa.load(file_path, res_type='kaiser_fast')
+        # Check if the audio file is empty
         mfccs = librosa.feature.mfcc(y=audio, sr=sample_rate, n_mfcc=n_mfcc)
         mfccs_processed = np.mean(mfccs.T, axis=0)
         return mfccs_processed
@@ -27,8 +31,8 @@ def extract_features_simple(data_dir, audio_paths_part_1, audio_paths_part_2,  n
 
 
 # Feature extraction function with four methods and only two hyperparameters
-def extract_features(data_dir, audio_paths_part_1, audio_paths_part_2, n_mfcc, frame_size, hop_length):
-    file_path = os.path.join(data_dir, audio_paths_part_1, audio_paths_part_2, "audio.cough.mp3")
+def extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length):
+    file_path = os.path.join(data_dir, audio_path, audio_name)
     # Check if the directory exists, if not, create it
     if os.path.exists(file_path):
         # TODO fix the audio load just like it happens in extract_features_simple
@@ -45,9 +49,9 @@ def extract_features(data_dir, audio_paths_part_1, audio_paths_part_2, n_mfcc, f
 
 
 # Feature extraction function with all five methods and all three hyperparameters
-def extract_features_with_segments(data_dir, audio_paths_part_1, audio_paths_part_2, n_mfcc, frame_size, hop_length, n_segments):
+def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length, n_segments):
     # TODO FIX THIS
-    file_path = os.path.join(data_dir, audio_paths_part_1, audio_paths_part_2, "audio.cough.mp3")
+    file_path = os.path.join(data_dir, audio_path, audio_name)
     if os.path.exists(file_path):
         audio, sample_rate = librosa.load(file_path, sr=None)
         segment_length = len(audio) // n_segments

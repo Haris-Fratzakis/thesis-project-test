@@ -11,22 +11,45 @@ from datetime import datetime
 import feature_extraction as feat_extr
 import training
 
+# Adding a directory choice to manage the name of each dataset
+# Dataset directory choice
+data_dir_choice = "coswara"
+
 # IMPORTANT, if run on different PCs, this needs to be changed to point to the dataset directory
 # Every dataset path query is formed in relation to this variable (data_dir)
-# Dataset directory
-data_dir = "E:/Storage/University/Thesis/smarty4covid/"
+# Load the index csv
+if data_dir_choice == "smarty4covid":
+    data_dir = "E:/Storage/University/Thesis/smarty4covid/"
+elif data_dir_choice == "coswara":
+    data_dir = "E:/Storage/University/Thesis/iiscleap-Coswara-Data-bf300ae/Extracted_data_mix"
+else:
+    print("No Data Specified, thus defaulting to smarty4covid")
+    data_dir = "E:/Storage/University/Thesis/smarty4covid/"
 
 
 # New Test function to have modular feature extraction and training functions
-def test_modular(data_dir):
+def test_modular():
     # Load the index csv
-    data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
-    data = pd.read_csv(data_index)
+    if data_dir_choice == "smarty4covid":
+        data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
+        data = pd.read_csv(data_index)
 
-    # Exclude rows where 'covid_status' is 'no'
-    data = data[data.covid_status != 'no']
+        # Exclude rows where 'covid_status' is 'no'
+        data = data[data.covid_status != 'no']
+    elif data_dir_choice == "coswara":
+        data_index = os.path.join(data_dir, 'combined_data_renamed.csv')
+        data = pd.read_csv(data_index)
 
-    # Further preprocessing can be done here or split to another function
+        # Exclude rows where 'covid_status' is 'under validation' or 'resp_illness_not_identified'
+        data = data[data.covid_status != 'under_validation']
+        data = data[data.covid_status != 'resp_illness_not_identified']
+    else:
+        # No Data Specified, thus defaulting to smarty4covid
+        data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
+        data = pd.read_csv(data_index)
+
+        # Exclude rows where 'covid_status' is 'no'
+        data = data[data.covid_status != 'no']
 
     # This is the modular feature extraction stage
 
@@ -38,8 +61,8 @@ def test_modular(data_dir):
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [1, 2, 3, 4, 5]
-    k_values_frame = [8, 9, 10, 11, 12]
+    k_values_mfcc = [5]
+    k_values_frame = None
     k_values_segment = None
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment)
 
@@ -82,7 +105,7 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
         # Feature Extraction Initialization Function with only one method and only one hyperparameter
         if k_values_frame == [-1]:
             # Name of the directory and file where the features will be saved
-            features_folder = "extracted_features/feat_extr_simple"
+            features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
 
             # Check if the directory exists, if not, create it
             if not os.path.exists(features_folder):
@@ -99,7 +122,20 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
             if not os.path.exists(feature_filename):
                 # Modified part to extract features and simultaneously filter labels
                 for idx, row in data.iterrows():
-                    feat = feat_extr.extract_features_simple(data_dir, row.participantid, row.submissionid, n_mfcc)
+                    if data_dir_choice == "smarty4covid":
+                        path_part_1 = row.participantid
+                        path_part_2 = row.submissionid
+                        audio_path = os.path.join(path_part_1, path_part_2)
+                        audio_name = "audio.cough.mp3"
+                    elif data_dir_choice == "coswara":
+                        audio_path = row.id
+                        audio_name = "cough-heavy.wav"
+                    else:
+                        path_part_1 = row.participantid
+                        path_part_2 = row.submissionid
+                        audio_path = os.path.join(path_part_1, path_part_2)
+                        audio_name = "audio.cough.mp3"
+                    feat = feat_extr.extract_features_simple(data_dir, audio_path, audio_name, n_mfcc)
                     if feat is not False:
                         features_list.append(feat)
                         successful_indices.append(idx)
@@ -121,7 +157,7 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                 # Feature Extraction Initialization Function with four methods and only two hyperparameters
                 if k_values_segment == [-1]:
                     # Name of the directory and file where the features will be saved
-                    features_folder = "extracted_features/feat_extr"
+                    features_folder = data_dir_choice + "/extracted_features/feat_extr"
 
                     # Check if the directory exists, if not, create it
                     if not os.path.exists(features_folder):
@@ -138,8 +174,20 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                     if not os.path.exists(feature_filename):
                         # Modified part to extract features and simultaneously filter labels
                         for idx, row in data.iterrows():
-                            # TODO Fix error
-                            feat = feat_extr.extract_features(data_dir, row.participantid, row.submissionid, n_mfcc, frame_size, hop_length)
+                            if data_dir_choice == "smarty4covid":
+                                path_part_1 = row.participantid
+                                path_part_2 = row.submissionid
+                                audio_path = os.path.join(path_part_1, path_part_2)
+                                audio_name = "audio.cough.mp3"
+                            elif data_dir_choice == "coswara":
+                                audio_path = row.id
+                                audio_name = "cough-heavy.wav"
+                            else:
+                                path_part_1 = row.participantid
+                                path_part_2 = row.submissionid
+                                audio_path = os.path.join(path_part_1, path_part_2)
+                                audio_name = "audio.cough.mp3"
+                            feat = feat_extr.extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length)
                             if feat is not False:
                                 features_list.append(feat)
                                 successful_indices.append(idx)
@@ -159,7 +207,7 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                         # Feature Extraction Initialization Function with all five methods and all three hyperparameters
 
                         # Name of the directory and file where the features will be saved
-                        features_folder = "extracted_features/feat_extr_with_segm"
+                        features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
 
                         # Check if the directory exists, if not, create it
                         if not os.path.exists(features_folder):
@@ -176,7 +224,20 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                         if not os.path.exists(feature_filename):
                             # Modified part to extract features and simultaneously filter labels
                             for idx, row in data.iterrows():
-                                feat = feat_extr.extract_features_with_segments(data_dir, row.participantid, row.submissionid, n_mfcc, frame_size, hop_length, n_segments)
+                                if data_dir_choice == "smarty4covid":
+                                    path_part_1 = row.participantid
+                                    path_part_2 = row.submissionid
+                                    audio_path = os.path.join(path_part_1, path_part_2)
+                                    audio_name = "audio.cough.mp3"
+                                elif data_dir_choice == "coswara":
+                                    audio_path = row.id
+                                    audio_name = "cough-heavy.wav"
+                                else:
+                                    path_part_1 = row.participantid
+                                    path_part_2 = row.submissionid
+                                    audio_path = os.path.join(path_part_1, path_part_2)
+                                    audio_name = "audio.cough.mp3"
+                                feat = feat_extr.extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length, n_segments)
                                 if feat is not False:
                                     features_list.append(feat)
                                     successful_indices.append(idx)
@@ -213,7 +274,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
         # Feature Extraction Initialization Function with only one method and only one hyperparameter
         if k_values_frame == [-1]:
             # Name of the directory and file where the features will be saved
-            features_folder = "extracted_features/feat_extr_simple"
+            features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
 
             # Check if the directory exists, if not, report error, data mismatch
             if not os.path.exists(features_folder):
@@ -241,7 +302,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                 # Feature Extraction Initialization Function with all five methods and only two hyperparameters
                 if k_values_segment == [-1]:
                     # Name of the directory and file where the features will be saved
-                    features_folder = "extracted_features/feat_extr"
+                    features_folder = data_dir_choice + "/extracted_features/feat_extr"
 
                     # Check if the directory exists, if not, report error, data mismatch
                     if not os.path.exists(features_folder):
@@ -269,7 +330,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                         # Feature Extraction Initialization Function with all five methods and all three hyperparameters
 
                         # Name of the directory and file where the features will be saved
-                        features_folder = "extracted_features/feat_extr_with_segm"
+                        features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
 
                         # Check if the directory exists, if not, report error, data mismatch
                         if not os.path.exists(features_folder):
@@ -302,37 +363,50 @@ def balance_dataset(features, labels, balance_method):
     # Class 0: Negative Covid
     # Class 1: Positive Covid
     print("Before balancing:")
-    print("Class 0:", sum(labels == 0))
-    print("Class 1:", sum(labels == 1))
+    class_0_sample_count = sum(labels == 0)
+    class_1_sample_count = sum(labels == 1)
+    total_original_samples = class_0_sample_count + class_1_sample_count
+    print("Total Samples:", total_original_samples)
+    print("Class 0:", class_0_sample_count)
+    print("Class 1:", class_1_sample_count)
 
     match balance_method:
         case "Resampling":
             # Apply Random Over Sampling and Under Sampling
             # Define the resampling strategy
-            over = RandomOverSampler(sampling_strategy=0.8)  # Oversample the minority to have 50% of the majority class
+            over = RandomOverSampler(sampling_strategy=0.7)  # Oversample the minority to have 70% of the majority class
             under = RandomUnderSampler(sampling_strategy=1.0)  # Undersample the majority to have equal to the minority
 
             # First apply oversampling
             features_oversampled, labels_oversampled = over.fit_resample(features, labels)
 
             print("After oversampling:")
-            print("Class 0:", sum(labels_oversampled == 0))
-            print("Class 1:", sum(labels_oversampled == 1))
+            class_0_sample_count = sum(labels_oversampled == 0)
+            class_1_sample_count = sum(labels_oversampled == 1)
+            print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            print("Class 0:", class_0_sample_count)
+            print("Class 1:", class_1_sample_count)
 
             # Then apply undersampling
             features_combined, labels_combined = under.fit_resample(features_oversampled, labels_oversampled)
 
             # Check new class distribution
             print("After undersampling:")
-            print("Class 0:", sum(labels_combined == 0))
-            print("Class 1:", sum(labels_combined == 1))
+            class_0_sample_count = sum(labels_combined == 0)
+            class_1_sample_count = sum(labels_combined == 1)
+            print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            print("Class 0:", class_0_sample_count)
+            print("Class 1:", class_1_sample_count)
 
             return features_combined, labels_combined
         case "SMOTE":
             # Check class distribution before SMOTE
             print("Before SMOTE:")
-            print("Class 0:", sum(labels == 0))  # Minority class
-            print("Class 1:", sum(labels == 1))  # Majority class
+            class_0_sample_count = sum(labels == 0)
+            class_1_sample_count = sum(labels == 1)
+            print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            print("Class 0:", class_0_sample_count)
+            print("Class 1:", class_1_sample_count)
 
             # Apply SMOTE
             smote = SMOTE(random_state=42)
@@ -340,8 +414,11 @@ def balance_dataset(features, labels, balance_method):
 
             # Check class distribution after SMOTE
             print("After SMOTE:")
-            print("Class 0:", sum(labels_res == 0))
-            print("Class 1:", sum(labels_res == 1))
+            class_0_sample_count = sum(labels_res == 0)
+            class_1_sample_count = sum(labels_res == 1)
+            print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            print("Class 0:", class_0_sample_count)
+            print("Class 1:", class_1_sample_count)
 
             return features_res, labels_res
         case _:
@@ -368,6 +445,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     scaler = StandardScaler()
     x_train = scaler.fit_transform(x_train_combined)
     x_test = scaler.transform(x_test)
+
+    # Check for NaN or infinite values in the scaled data
+    if np.any(np.isnan(x_train)) or np.any(np.isinf(x_train)):
+        print("Input data contains NaN or infinite values.")
 
     # Initialize results
     results_model = {
@@ -422,9 +503,9 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     if models_used[2] == 1:
         # svm_hyper refers to the hyperparameters for svm
         # first slot is C, the regularization strength
-        # Syntax: [a,b,c], Usage: 'n_neighbors': list(range(a, b, c)),
+        # Syntax: [a,b,c], Usage: 'C': np.logspace(a, b, c),
         # second slot is gamma, which controls the kernel coefficient
-        # Syntax: [a,b,c], Usage: 'C': np.logspace(a, b, c)
+        # Syntax: [a,b,c], Usage: 'gamma': np.logspace(a, b, c)
 
         svm_hyper = [[-7, 7, 15], [-7, 7, 15]]
         # Training
@@ -436,10 +517,32 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         # Saving the best hyperparameters
         results_model['Hyper_SVM__C'] = model_svm_hyper["C"]
+        results_model['Hyper_SVM__gamma'] = model_svm_hyper["gamma"]
 
         results_model['performance_metrics_svm'] = performance_metrics_svm
+    if models_used[3] == 1:
+        # mlp_hyper refers to the hyperparameters for mlp
+        # first slot is hidden_layer_sizes, the number of neurons
+        # Syntax: [a,b,c], Usage: 'hidden_layer_sizes': [(n,) for n in range(a, b, c)],
+        # second slot is alpha, which controls the L2 penalty
+        # Syntax: [a,b], Usage: 'alpha': [10 ** i for i in range(a, b)]
+        # third slot is learning_rate_init, which controls the stochastic gradient descent
+        # Syntax: [a,b,c], Usage: 'learning_rate_init': np.arange(a, b, c)
 
-    # Predict and evaluate all models
+        mlp_hyper = [[10, 101, 10], [-7, 8], [0.05, 1.05, 0.05]]
+        # Training
+        model_mlp, model_mlp_hyper = training.mlp_training(x_train, y_train_combined, mlp_hyper)
+
+        # Evaluating
+        y_pred_proba = model_mlp.predict_proba(x_test)[:, 1]
+        performance_metrics_mlp = training.evaluate_model(y_test, y_pred_proba)
+
+        # Saving the best hyperparameters
+        results_model['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper["hidden_layer_sizes"]
+        results_model['Hyper_MLP__alpha'] = model_mlp_hyper["alpha"]
+        results_model['Hyper_MLP__learning_rate_init'] = model_mlp_hyper["learning_rate_init"]
+
+        results_model['performance_metrics_mlp'] = performance_metrics_mlp
 
     return results_model
 
@@ -450,6 +553,7 @@ def models_name_conv(model):
         0: "performance_metrics_lr",
         1: "performance_metrics_knn",
         2: "performance_metrics_svm",
+        3: "performance_metrics_mlp",
     }
 
     # get() method of dictionary data type returns
@@ -485,7 +589,7 @@ def test_display(results_df, models_used_str):
             # Join the new columns back with the original DataFrame
             results_df = pd.concat([results_df.drop(perf_res, axis=1), array_df], axis=1)
 
-            metrics_folder = "./model_metrics"
+            metrics_folder = "./" + data_dir_choice + "/model_metrics"
 
             # Check if the directory exists, if not, create it
             if not os.path.exists(metrics_folder):
@@ -510,7 +614,7 @@ def test_display(results_df, models_used_str):
             results_df = pd.concat([results_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])], ignore_index=True)
 
             # Save the expanded DataFrame to a CSV file
-            results_df.to_csv('./model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
+            results_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
 
 
-results_df = test_modular(data_dir)
+results_df = test_modular()

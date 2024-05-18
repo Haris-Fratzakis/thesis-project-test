@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Conv2D, Flatten, Dense, Conv1D, MaxPooling1D, GlobalAveragePooling2D, LSTM
 from tensorflow.keras.applications.resnet50 import ResNet50
@@ -109,7 +110,7 @@ def lr_training(x_train, y_train, lr_hyper=None):
 
     # Use GridSearchCV to search the hyperparameter grid with 5-fold cross validation
     #clf_1 = GridSearchCV(logistic, param_grid_l1, cv=5, verbose=0)
-    clf_2 = GridSearchCV(logistic, param_grid_l2, cv=5, verbose=0, scoring='roc_auc')
+    clf_2 = GridSearchCV(logistic, param_grid_l2, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)
 
     # Fit the model with the grid search
     # clf_1.fit(x_train, y_train)
@@ -138,7 +139,7 @@ def knn_training(x_train, y_train, knn_hyper):
     print("kNN Classifier Start")
 
     # Create a GridSearchCV instance
-    grid_search = GridSearchCV(knn, param_grid, cv=5, verbose=0, scoring='roc_auc')  # cv=5 for 5-fold cross-validation
+    grid_search = GridSearchCV(knn, param_grid, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)  # cv=5 for 5-fold cross-validation
 
     # Fit the GridSearchCV instance to the training data
     grid_search.fit(x_train, y_train)
@@ -158,11 +159,11 @@ def svm_training(x_train, y_train, svm_hyper):
     }
 
     # Create an SVM classifier instance
-    svm = SVC(max_iter=10000)
+    svm = SVC(probability=True, max_iter=5000)
 
     print("SVM Classifier Start")
     # Create a GridSearchCV instance
-    grid_search = GridSearchCV(svm, param_grid, cv=5, verbose=0, scoring='roc_auc')  # cv=5 for 5-fold cross-validation
+    grid_search = GridSearchCV(svm, param_grid, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)  # cv=5 for 5-fold cross-validation
 
     # Fit the GridSearchCV instance to the training data
     grid_search.fit(x_train, y_train)
@@ -175,18 +176,49 @@ def svm_training(x_train, y_train, svm_hyper):
 
 
 # Multi-layer Perceptron Model
-def mlp_training(x_train, y_train):
+def mlp_training(x_train, y_train, mlp_hyper):
+    # Define the parameter grid
+    param_grid = {
+        'hidden_layer_sizes': [(n,) for n in range(mlp_hyper[0][0], mlp_hyper[0][1], mlp_hyper[0][2])],  # (10,), (20,), ..., (100,)
+        'alpha': [10 ** i for i in range(mlp_hyper[1][0], mlp_hyper[1][1])],  # 10^-7, 10^-6, ..., 10^7
+        'learning_rate_init': np.arange(mlp_hyper[2][0], mlp_hyper[2][1], mlp_hyper[2][2])  # 0, 0.05, ..., 1
+    }
+
     # Initialize model
-    model_mlp = Sequential([
-        Dense(64, activation='relu', input_shape=(x_train.shape[1],)),
-        Dense(64, activation='relu'),
-        Dense(1, activation='sigmoid')  # Use 'softmax' and change units for multi-class
-    ])
+    # model_mlp = Sequential([
+    #     Dense(64, activation='relu', input_shape=(x_train.shape[1],)),
+    #     Dense(64, activation='relu'),
+    #     Dense(1, activation='sigmoid')  # Use 'softmax' and change units for multi-class
+    # ])
 
-    model_mlp.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    model_mlp.fit(x_train, y_train, epochs=10, batch_size=32)
+    # Modify the MLPClassifier to catch and handle specific errors that occur due to non-finite weights:
+    class RobustMLPClassifier(MLPClassifier):
+        def fit(self, x, y):
+            try:
+                super().fit(x, y)
+            except ValueError as e:
+                if 'non-finite' in str(e):
+                    print(f"Skipping non-finite weights error: {e}")
+                    return None
+                else:
+                    raise
 
-    return model_mlp
+    # Create the MLPClassifier
+    mlp = RobustMLPClassifier(max_iter=1000, solver='sgd', early_stopping=True, n_iter_no_change=10)
+
+    print("MLP Classifier Start")
+
+    # Create the GridSearchCV object
+    grid_search = GridSearchCV(estimator=mlp, param_grid=param_grid, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)
+
+    # Fit the GridSearchCV instance to the training data
+    grid_search.fit(x_train, y_train)
+
+    # Retrieve the best estimator (model with the best hyperparameters)
+    model_mlp = grid_search.best_estimator_
+    model_mlp_hyper = grid_search.best_params_
+
+    return model_mlp, model_mlp_hyper
 
 
 # Convolutional Neural Network Model
