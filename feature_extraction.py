@@ -20,7 +20,7 @@ def extract_features_simple(data_dir, audio_path, audio_name, n_mfcc):
     # Check if the directory exists, if not, create it
     if os.path.exists(file_path):
         if os.path.getsize(file_path) <= 2048:
-            print(f"The audio file {file_path} is empty. Skipping this file.")
+            # print(f"The audio file {file_path} is empty. Skipping this file.")
             return False
         audio, sample_rate = librosa.load(file_path, res_type='kaiser_fast')
         # Check if the audio file is empty
@@ -35,8 +35,10 @@ def extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_l
     file_path = os.path.join(data_dir, audio_path, audio_name)
     # Check if the directory exists, if not, create it
     if os.path.exists(file_path):
-        # TODO fix the audio load just like it happens in extract_features_simple
-        audio, sample_rate = librosa.load(file_path, sr=None)
+        if os.path.getsize(file_path) <= 2048:
+            # print(f"The audio file {file_path} is empty. Skipping this file.")
+            return False
+        audio, sample_rate = librosa.load(file_path, res_type='kaiser_fast')
         mfccs = librosa.feature.mfcc(y=audio, sr=sample_rate, n_mfcc=n_mfcc, n_fft=frame_size, hop_length=hop_length)
         sc = librosa.feature.spectral_centroid(y=audio, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
         sr = librosa.feature.spectral_rolloff(y=audio, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
@@ -53,7 +55,10 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, fra
     # TODO FIX THIS
     file_path = os.path.join(data_dir, audio_path, audio_name)
     if os.path.exists(file_path):
-        audio, sample_rate = librosa.load(file_path, sr=None)
+        if os.path.getsize(file_path) <= 2048:
+            # print(f"The audio file {file_path} is empty. Skipping this file.")
+            return False
+        audio, sample_rate = librosa.load(file_path, res_type='kaiser_fast')
         segment_length = len(audio) // n_segments
         segment_features = []
 

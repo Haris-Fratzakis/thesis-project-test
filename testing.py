@@ -61,15 +61,15 @@ def test_modular():
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [5]
-    k_values_frame = None
+    k_values_mfcc = [1, 2, 3, 4, 5]
+    k_values_frame = [8, 9, 10, 11, 12]
     k_values_segment = None
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [0, 1, 0, 0, 0, 0]
+    models_used = [1, 1, 0, 1, 0, 0]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
     results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used)
@@ -409,7 +409,8 @@ def balance_dataset(features, labels, balance_method):
             print("Class 1:", class_1_sample_count)
 
             # Apply SMOTE
-            smote = SMOTE(random_state=42)
+            smote = SMOTE()  # random_state case
+            # smote = SMOTE(random_state=42)
             features_res, labels_res = smote.fit_resample(features, labels)
 
             # Check class distribution after SMOTE
@@ -437,7 +438,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
     # Split dataset
-    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+    # x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)  # random_state case
+    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2)
 
     x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method)
 
@@ -565,7 +567,7 @@ def models_name_conv(model):
 
 # Function to display the results dataframe in a better way
 def test_display(results_df, models_used_str):
-    # TODO Add the hyperparameters of the models to the excel
+    # TODO Fix the print function (check my_dataframe_expanded_2024_05_19__00_34_28 in coswara)
     # Print the entire DataFrame
     print("Metrics Used: [specificity, sensitivity, precision, accuracy, F1, AUC]")
     for perf_res in models_used_str:

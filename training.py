@@ -29,7 +29,8 @@ import matplotlib.pyplot as plt
 # Test Function for Classifiers
 def classifier(features, labels, n_mfcc, frame_size=0, n_segments=0):
     # Splitting dataset
-    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+    # x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2)  # random_state case
 
     # Standardize features
     scaler = StandardScaler()
