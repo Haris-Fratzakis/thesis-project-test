@@ -199,7 +199,7 @@ def mlp_training(x_train, y_train, mlp_hyper):
                 super().fit(x, y)
             except ValueError as e:
                 if 'non-finite' in str(e):
-                    print(f"Skipping non-finite weights error: {e}")
+                    # print(f"Skipping non-finite weights error: {e}")
                     return None
                 else:
                     raise

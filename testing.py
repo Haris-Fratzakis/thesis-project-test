@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import numpy as np
+from scipy.stats import mode
+from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelEncoder
@@ -63,16 +65,18 @@ def test_modular():
     # Test
     k_values_mfcc = [1, 2, 3, 4, 5]
     k_values_frame = [8, 9, 10, 11, 12]
-    k_values_segment = None
-    test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment)
+    k_values_segment = [5, 7, 10, 12, 15]
+    test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
+                   k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [1, 1, 0, 1, 0, 0]
+    models_used = [0, 1, 0, 0, 0, 0]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
-    results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used)
+    results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
+                                     k_values_segment=k_values_segment, models_used=models_used)
     # print(results_df)
 
     # convert models_used values to their names
@@ -84,6 +88,16 @@ def test_modular():
     test_display(results_df, models_used)
 
     return results_df
+
+
+# Making sure all features vectors are the same shape
+def pad_or_truncate(features, target_length):
+    if len(features) > target_length:
+        return features[:target_length]
+    elif len(features) < target_length:
+        return np.pad(features, (0, target_length - len(features)), 'constant')
+    else:
+        return features
 
 
 # Temporary feature extraction function
@@ -187,7 +201,8 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                                 path_part_2 = row.submissionid
                                 audio_path = os.path.join(path_part_1, path_part_2)
                                 audio_name = "audio.cough.mp3"
-                            feat = feat_extr.extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length)
+                            feat = feat_extr.extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size,
+                                                              hop_length)
                             if feat is not False:
                                 features_list.append(feat)
                                 successful_indices.append(idx)
@@ -213,8 +228,10 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                         if not os.path.exists(features_folder):
                             os.makedirs(features_folder)
 
-                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
-                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
+                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
+                            k_segment) + ".npy"
+                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
+                            k_segment) + ".npy"
                         feature_filename = os.path.join(features_folder, feature_filename_target)
                         label_filename = os.path.join(features_folder, label_filename_target)
 
@@ -237,10 +254,34 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                                     path_part_2 = row.submissionid
                                     audio_path = os.path.join(path_part_1, path_part_2)
                                     audio_name = "audio.cough.mp3"
-                                feat = feat_extr.extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length, n_segments)
+                                feat = feat_extr.extract_features_with_segments(data_dir, audio_path, audio_name,
+                                                                                n_mfcc, frame_size, hop_length,
+                                                                                n_segments)
                                 if feat is not False:
                                     features_list.append(feat)
                                     successful_indices.append(idx)
+
+                            # check if all features have the same shape
+                            shapes = [f.shape for f in features_list]
+                            unique_shapes = set(shapes)
+                            if len(unique_shapes) > 1:
+                                print("Inconsistent shapes found in features_list:")
+                                for shape in unique_shapes:
+                                    print(f"Shape: {shape}, Count: {shapes.count(shape)}")
+
+                                lengths = [len(f) for f in features_list]
+                                print(lengths)
+
+                                # if there are different size vectors
+                                most_common_length_result = mode(lengths)
+                                if isinstance(most_common_length_result.mode, np.ndarray):
+                                    most_common_length = most_common_length_result.mode[0]
+                                else:
+                                    most_common_length = most_common_length_result.mode
+
+                                # Shaping all features vectors to use the most common length
+                                target_length = most_common_length
+                                features_list = [pad_or_truncate(f, target_length) for f in features_list]
                             features = np.array(features_list)
 
                             # Filter labels based on successful feature extraction
@@ -293,7 +334,8 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                 # Train and evaluate the different classifiers outlined in training.py
                 results.append(test_classifier(features, labels, n_mfcc=n_mfcc, models_used=models_used))
             else:
-                print("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
+                print(
+                    "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
         else:
             for k_frame in k_values_frame:
                 frame_size = 2 ** k_frame
@@ -319,7 +361,8 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                         labels = np.load(label_filename)
 
                         # Train and evaluate the different classifiers outlined in training.py
-                        results.append(test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size, models_used=models_used))
+                        results.append(test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size,
+                                                       models_used=models_used))
                     else:
                         print(
                             "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
@@ -336,8 +379,10 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                         if not os.path.exists(features_folder):
                             print("Error, data mismatch, features folder doesn't exist in test classifier")
 
-                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
-                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
+                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
+                            k_segment) + ".npy"
+                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
+                            k_segment) + ".npy"
                         feature_filename = os.path.join(features_folder, feature_filename_target)
                         label_filename = os.path.join(features_folder, label_filename_target)
 
@@ -347,7 +392,8 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                             labels = np.load(label_filename)
 
                             # Train and evaluate the different classifiers outlined in training.py
-                            results.append(test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size, n_segments=n_segments, models_used=models_used))
+                            results.append(test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size,
+                                                           n_segments=n_segments, models_used=models_used))
                         else:
                             print(
                                 "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
@@ -435,6 +481,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # Balance dataset
     # Methods: Resampling, SMOTE
     balance_method = "Resampling"
+
+    # Test NaN conflict resolution
+    # Methods: imputing, dropping
+    test_nan_conflict_solving_method = "imputing"
     # features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
     # Split dataset
@@ -448,13 +498,37 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     x_train = scaler.fit_transform(x_train_combined)
     x_test = scaler.transform(x_test)
 
-    # Check for NaN or infinite values in the scaled data
-    if np.any(np.isnan(x_train)) or np.any(np.isinf(x_train)):
-        print("Input data contains NaN or infinite values.")
+    # Check for NaN values in the scaled data
+    if np.any(np.isnan(x_train)):
+        print("NaN values found in x_train, applying imputation.")
+        imputer = SimpleImputer(strategy='mean')
+        x_train = imputer.fit_transform(x_train)
+
+    if test_nan_conflict_solving_method == "imputing":
+        # Check for NaN values in the scaled data
+        if np.any(np.isnan(x_test)):
+            print("NaN values found in x_train, applying imputation.")
+            imputer = SimpleImputer(strategy='mean')
+            x_test = imputer.fit_transform(x_test)
+    elif test_nan_conflict_solving_method == "dropping":
+        # Drop samples with NaN values in test dataset
+        print("x_test size before dropping: " + str(len(x_test)))
+
+        # Create a mask for rows without NaN values
+        mask = ~np.isnan(x_test).any(axis=1)
+        if mask.any():
+            print("NaN values found in x_test, dropping samples.")
+
+        # Apply the mask to x_test and y_test
+        x_test = x_test[mask]
+        y_test = y_test[mask]
+
+        print("x_test size after dropping: " + str(len(x_test)))
 
     # Initialize results
     results_model = {
         'dataset_balance_method': balance_method,
+        'test_nan_conflict_solving_method': test_nan_conflict_solving_method,
         'mfcc': n_mfcc,
         'frame_size': frame_size,
         'segments': n_segments,
@@ -574,13 +648,15 @@ def test_display(results_df, models_used_str):
         if perf_res in results_df:
             print(perf_res)
             metrics = results_df[perf_res]
+            # print(metrics)
             print(metrics.apply(lambda x: [f"{num:.4f}" for num in x]))
 
             # Convert the 'array_column' to a DataFrame and expand it into separate columns
             array_df = pd.DataFrame(metrics.tolist(), index=results_df.index)
 
             # Your specific list of names for the expanded columns
-            column_names = [perf_res + "_specificity", perf_res + "_sensitivity", perf_res + "_precision", perf_res + "_accuracy", perf_res + "_F1", perf_res + "_AUC"]
+            column_names = [perf_res + "_specificity", perf_res + "_sensitivity", perf_res + "_precision",
+                            perf_res + "_accuracy", perf_res + "_F1", perf_res + "_AUC"]
 
             # Ensure the list length matches the number of columns to rename
             if len(column_names) == array_df.shape[1]:
@@ -613,10 +689,12 @@ def test_display(results_df, models_used_str):
             second_blank_row = second_blank_row.reindex(columns=results_df.columns, fill_value='')
 
             # Append the blank rows followed by the max row to the DataFrame
-            results_df = pd.concat([results_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])], ignore_index=True)
+            results_df = pd.concat([results_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])],
+                                   ignore_index=True)
 
             # Save the expanded DataFrame to a CSV file
-            results_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
+            results_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + current_date + '.csv',
+                              index=False)
 
 
 results_df = test_modular()
