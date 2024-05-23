@@ -15,7 +15,7 @@ import training
 
 # Adding a directory choice to manage the name of each dataset
 # Dataset directory choice
-data_dir_choice = "coswara"
+data_dir_choice = "smarty4covid"
 
 # IMPORTANT, if run on different PCs, this needs to be changed to point to the dataset directory
 # Every dataset path query is formed in relation to this variable (data_dir)
@@ -63,16 +63,16 @@ def test_modular():
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [1, 2, 3, 4, 5]
-    k_values_frame = [8, 9, 10, 11, 12]
-    k_values_segment = [5, 7, 10, 12, 15]
+    k_values_mfcc = [1]
+    k_values_frame = [8, 9]
+    k_values_segment = None
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [0, 1, 0, 0, 0, 0]
+    models_used = [1, 1, 0, 0, 0, 0]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
     results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
@@ -408,13 +408,13 @@ def balance_dataset(features, labels, balance_method):
     # Check class distribution
     # Class 0: Negative Covid
     # Class 1: Positive Covid
-    print("Before balancing:")
+    # print("Before balancing:")
     class_0_sample_count = sum(labels == 0)
     class_1_sample_count = sum(labels == 1)
     total_original_samples = class_0_sample_count + class_1_sample_count
-    print("Total Samples:", total_original_samples)
-    print("Class 0:", class_0_sample_count)
-    print("Class 1:", class_1_sample_count)
+    # print("Total Samples:", total_original_samples)
+    # print("Class 0:", class_0_sample_count)
+    # print("Class 1:", class_1_sample_count)
 
     match balance_method:
         case "Resampling":
@@ -426,33 +426,33 @@ def balance_dataset(features, labels, balance_method):
             # First apply oversampling
             features_oversampled, labels_oversampled = over.fit_resample(features, labels)
 
-            print("After oversampling:")
+            # print("After oversampling:")
             class_0_sample_count = sum(labels_oversampled == 0)
             class_1_sample_count = sum(labels_oversampled == 1)
-            print("Total Samples:", class_0_sample_count + class_1_sample_count)
-            print("Class 0:", class_0_sample_count)
-            print("Class 1:", class_1_sample_count)
+            # print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            # print("Class 0:", class_0_sample_count)
+            # print("Class 1:", class_1_sample_count)
 
             # Then apply undersampling
             features_combined, labels_combined = under.fit_resample(features_oversampled, labels_oversampled)
 
             # Check new class distribution
-            print("After undersampling:")
+            # print("After undersampling:")
             class_0_sample_count = sum(labels_combined == 0)
             class_1_sample_count = sum(labels_combined == 1)
-            print("Total Samples:", class_0_sample_count + class_1_sample_count)
-            print("Class 0:", class_0_sample_count)
-            print("Class 1:", class_1_sample_count)
+            # print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            # print("Class 0:", class_0_sample_count)
+            # print("Class 1:", class_1_sample_count)
 
             return features_combined, labels_combined
         case "SMOTE":
             # Check class distribution before SMOTE
-            print("Before SMOTE:")
+            # print("Before SMOTE:")
             class_0_sample_count = sum(labels == 0)
             class_1_sample_count = sum(labels == 1)
-            print("Total Samples:", class_0_sample_count + class_1_sample_count)
-            print("Class 0:", class_0_sample_count)
-            print("Class 1:", class_1_sample_count)
+            # print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            # print("Class 0:", class_0_sample_count)
+            # print("Class 1:", class_1_sample_count)
 
             # Apply SMOTE
             smote = SMOTE()  # random_state case
@@ -460,12 +460,12 @@ def balance_dataset(features, labels, balance_method):
             features_res, labels_res = smote.fit_resample(features, labels)
 
             # Check class distribution after SMOTE
-            print("After SMOTE:")
+            # print("After SMOTE:")
             class_0_sample_count = sum(labels_res == 0)
             class_1_sample_count = sum(labels_res == 1)
-            print("Total Samples:", class_0_sample_count + class_1_sample_count)
-            print("Class 0:", class_0_sample_count)
-            print("Class 1:", class_1_sample_count)
+            # print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            # print("Class 0:", class_0_sample_count)
+            # print("Class 1:", class_1_sample_count)
 
             return features_res, labels_res
         case _:
@@ -500,30 +500,31 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
     # Check for NaN values in the scaled data
     if np.any(np.isnan(x_train)):
-        print("NaN values found in x_train, applying imputation.")
+        # print("NaN values found in x_train, applying imputation.")
         imputer = SimpleImputer(strategy='mean')
         x_train = imputer.fit_transform(x_train)
 
     if test_nan_conflict_solving_method == "imputing":
         # Check for NaN values in the scaled data
         if np.any(np.isnan(x_test)):
-            print("NaN values found in x_train, applying imputation.")
+            # print("NaN values found in x_train, applying imputation.")
             imputer = SimpleImputer(strategy='mean')
             x_test = imputer.fit_transform(x_test)
     elif test_nan_conflict_solving_method == "dropping":
         # Drop samples with NaN values in test dataset
-        print("x_test size before dropping: " + str(len(x_test)))
+        # print("x_test size before dropping: " + str(len(x_test)))
 
         # Create a mask for rows without NaN values
         mask = ~np.isnan(x_test).any(axis=1)
         if mask.any():
-            print("NaN values found in x_test, dropping samples.")
+            # print("NaN values found in x_test, dropping samples.")
+            pass
 
         # Apply the mask to x_test and y_test
         x_test = x_test[mask]
         y_test = y_test[mask]
 
-        print("x_test size after dropping: " + str(len(x_test)))
+        # ("x_test size after dropping: " + str(len(x_test)))
 
     # Initialize results
     results_model = {
@@ -533,6 +534,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         'frame_size': frame_size,
         'segments': n_segments,
     }
+
+    # Show iteration progress
+    print("mfcc: " + str(n_mfcc))
+    print("frame_size: " + str(frame_size))
+    print("segments: " + str(n_segments))
 
     # Initialize all models
     # LR
@@ -641,14 +647,15 @@ def models_name_conv(model):
 
 # Function to display the results dataframe in a better way
 def test_display(results_df, models_used_str):
-    # TODO Fix the print function (check my_dataframe_expanded_2024_05_19__00_34_28 in coswara)
+    # Create a new DataFrame to store the results
+    expanded_results_df = pd.DataFrame()
+
     # Print the entire DataFrame
     print("Metrics Used: [specificity, sensitivity, precision, accuracy, F1, AUC]")
     for perf_res in models_used_str:
         if perf_res in results_df:
             print(perf_res)
             metrics = results_df[perf_res]
-            # print(metrics)
             print(metrics.apply(lambda x: [f"{num:.4f}" for num in x]))
 
             # Convert the 'array_column' to a DataFrame and expand it into separate columns
@@ -664,8 +671,10 @@ def test_display(results_df, models_used_str):
             else:
                 raise ValueError("The number of column names does not match the number of columns.")
 
-            # Join the new columns back with the original DataFrame
-            results_df = pd.concat([results_df.drop(perf_res, axis=1), array_df], axis=1)
+            # Join the new columns with the expanded_results_df DataFrame
+            expanded_results_df = pd.concat([expanded_results_df, array_df], axis=1)
+
+            print(expanded_results_df)
 
             metrics_folder = "./" + data_dir_choice + "/model_metrics"
 
@@ -677,24 +686,24 @@ def test_display(results_df, models_used_str):
             current_date = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
             # Find the model with the best ROC curve for each model type used
-            max_row = results_df.loc[results_df[perf_res + "_AUC"].idxmax()]
+            max_row = expanded_results_df.loc[expanded_results_df[perf_res + "_AUC"].idxmax()]
             print(max_row)
 
             # Create a blank row to separate the best results
-            first_blank_row = pd.DataFrame([{}], columns=results_df.columns)
+            first_blank_row = pd.DataFrame([{}], columns=expanded_results_df.columns)
 
             # Create a second blank row to separate the best results
             # Adding the max row label of each model used
-            second_blank_row = pd.DataFrame({results_df.columns[0]: ["Best Model for " + perf_res]}, index=[0])
-            second_blank_row = second_blank_row.reindex(columns=results_df.columns, fill_value='')
+            second_blank_row = pd.DataFrame({expanded_results_df.columns[0]: ["Best Model for " + perf_res]}, index=[0])
+            second_blank_row = second_blank_row.reindex(columns=expanded_results_df.columns, fill_value='')
 
             # Append the blank rows followed by the max row to the DataFrame
-            results_df = pd.concat([results_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])],
-                                   ignore_index=True)
+            expanded_results_df = pd.concat([expanded_results_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])],
+                                            ignore_index=True)
 
             # Save the expanded DataFrame to a CSV file
-            results_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + current_date + '.csv',
-                              index=False)
+            expanded_results_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + current_date + '.csv',
+                                       index=False)
 
 
 results_df = test_modular()

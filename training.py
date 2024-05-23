@@ -105,7 +105,7 @@ def lr_training(x_train, y_train, lr_hyper=None):
         param_grid_l2['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
 
     # Create a logistic regression model
-    logistic = LogisticRegression(solver='saga', max_iter=10000)
+    logistic = LogisticRegression(solver='saga', max_iter=5000)
 
     print("LR Classifier Start")
 
