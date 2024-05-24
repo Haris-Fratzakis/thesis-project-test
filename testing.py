@@ -64,19 +64,20 @@ def test_modular():
 
     # Test
     k_values_mfcc = [1]
-    k_values_frame = [8, 9]
-    k_values_segment = None
+    k_values_frame = [8]
+    k_values_segment = [5, 7, 10, 12, 15]
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [1, 1, 0, 0, 0, 0]
+    models_used = [0, 1, 0, 0, 0, 0]
+    test_size = [0.3]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
-    results_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
-                                     k_values_segment=k_values_segment, models_used=models_used)
+    results_df, parameters_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
+                                     k_values_segment=k_values_segment, models_used=models_used, test_size=test_size)
     # print(results_df)
 
     # convert models_used values to their names
@@ -85,7 +86,7 @@ def test_modular():
             models_used[idx] = models_name_conv(idx)
 
     print("Models Used List: " + str(models_used))
-    test_display(results_df, models_used)
+    test_display(results_df, models_used, parameters_df)
 
     return results_df
 
@@ -264,6 +265,8 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                             # check if all features have the same shape
                             shapes = [f.shape for f in features_list]
                             unique_shapes = set(shapes)
+                            for shape in unique_shapes:
+                                print(f"Shape: {shape}, Count: {shapes.count(shape)}")
                             if len(unique_shapes) > 1:
                                 print("Inconsistent shapes found in features_list:")
                                 for shape in unique_shapes:
@@ -295,7 +298,7 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
 
 
 # Temporary classifier function
-def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=None, models_used=None):
+def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=None, models_used=None, test_size=None):
     if k_values_mfcc is None:
         k_values_mfcc = [1]
     if k_values_frame is None:
@@ -304,85 +307,64 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
         k_values_segment = [-1]
     if models_used is None:
         models_used = [0, 0, 0, 0, 0, 0]
+    if test_size is None:
+        k_values_segment = [0.3]
 
     # Initialize list for storing results
     results = []
+    parameters = []
 
+    total_iterations = len(k_values_mfcc) * len(k_values_frame) * len(k_values_segment) * len(test_size)
+    current_iteration = 0
     # Loop over all combinations of hyperparameters
-    for k_mfcc in k_values_mfcc:
-        n_mfcc = 14 * k_mfcc
+    for test_size_val in test_size:
+        for k_mfcc in k_values_mfcc:
+            n_mfcc = 14 * k_mfcc
 
-        # Feature Extraction Initialization Function with only one method and only one hyperparameter
-        if k_values_frame == [-1]:
-            # Name of the directory and file where the features will be saved
-            features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
+            # Feature Extraction Initialization Function with only one method and only one hyperparameter
+            if k_values_frame == [-1]:
+                # Name of the directory and file where the features will be saved
+                features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
 
-            # Check if the directory exists, if not, report error, data mismatch
-            if not os.path.exists(features_folder):
-                print("Error, data mismatch, features folder doesn't exist in test classifier")
+                # Check if the directory exists, if not, report error, data mismatch
+                if not os.path.exists(features_folder):
+                    print("Error, data mismatch, features folder doesn't exist in test classifier")
 
-            feature_filename_target = "extracted_features_" + str(k_mfcc) + ".npy"
-            label_filename_target = "extracted_labels_" + str(k_mfcc) + ".npy"
-            feature_filename = os.path.join(features_folder, feature_filename_target)
-            label_filename = os.path.join(features_folder, label_filename_target)
+                feature_filename_target = "extracted_features_" + str(k_mfcc) + ".npy"
+                label_filename_target = "extracted_labels_" + str(k_mfcc) + ".npy"
+                feature_filename = os.path.join(features_folder, feature_filename_target)
+                label_filename = os.path.join(features_folder, label_filename_target)
 
-            # Check if the file doesn't exist
-            if os.path.exists(feature_filename):
-                features = np.load(feature_filename)
-                labels = np.load(label_filename)
+                # Check if the file doesn't exist
+                if os.path.exists(feature_filename):
+                    features = np.load(feature_filename)
+                    labels = np.load(label_filename)
 
-                # Train and evaluate the different classifiers outlined in training.py
-                results.append(test_classifier(features, labels, n_mfcc=n_mfcc, models_used=models_used))
-            else:
-                print(
-                    "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
-        else:
-            for k_frame in k_values_frame:
-                frame_size = 2 ** k_frame
-                hop_length = frame_size // 2  # 50% overlap
-
-                # Feature Extraction Initialization Function with all five methods and only two hyperparameters
-                if k_values_segment == [-1]:
-                    # Name of the directory and file where the features will be saved
-                    features_folder = data_dir_choice + "/extracted_features/feat_extr"
-
-                    # Check if the directory exists, if not, report error, data mismatch
-                    if not os.path.exists(features_folder):
-                        print("Error, data mismatch, features folder doesn't exist in test classifier")
-
-                    feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
-                    label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
-                    feature_filename = os.path.join(features_folder, feature_filename_target)
-                    label_filename = os.path.join(features_folder, label_filename_target)
-
-                    # Check if the file doesn't exist
-                    if os.path.exists(feature_filename):
-                        features = np.load(feature_filename)
-                        labels = np.load(label_filename)
-
-                        # Train and evaluate the different classifiers outlined in training.py
-                        results.append(test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size,
-                                                       models_used=models_used))
-                    else:
-                        print(
-                            "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
+                    # Train and evaluate the different classifiers outlined in training.py
+                    current_iteration += 1
+                    print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
+                    run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc, models_used=models_used, test_size=test_size_val)
+                    results.append(run_res)
+                    parameters.append(run_param)
                 else:
-                    for k_segment in k_values_segment:
-                        n_segments = 10 * k_segment
+                    print(
+                        "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
+            else:
+                for k_frame in k_values_frame:
+                    frame_size = 2 ** k_frame
+                    hop_length = frame_size // 2  # 50% overlap
 
-                        # Feature Extraction Initialization Function with all five methods and all three hyperparameters
-
+                    # Feature Extraction Initialization Function with all five methods and only two hyperparameters
+                    if k_values_segment == [-1]:
                         # Name of the directory and file where the features will be saved
-                        features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
+                        features_folder = data_dir_choice + "/extracted_features/feat_extr"
 
                         # Check if the directory exists, if not, report error, data mismatch
                         if not os.path.exists(features_folder):
                             print("Error, data mismatch, features folder doesn't exist in test classifier")
 
-                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
-                            k_segment) + ".npy"
-                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
-                            k_segment) + ".npy"
+                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
+                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
                         feature_filename = os.path.join(features_folder, feature_filename_target)
                         label_filename = os.path.join(features_folder, label_filename_target)
 
@@ -392,35 +374,75 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                             labels = np.load(label_filename)
 
                             # Train and evaluate the different classifiers outlined in training.py
-                            results.append(test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size,
-                                                           n_segments=n_segments, models_used=models_used))
+                            current_iteration += 1
+                            print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
+                            run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size,
+                                                                 models_used=models_used, test_size=test_size_val)
+                            results.append(run_res)
+                            parameters.append(run_param)
                         else:
                             print(
                                 "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
+                    else:
+                        for k_segment in k_values_segment:
+                            n_segments = 10 * k_segment
+
+                            # Feature Extraction Initialization Function with all five methods and all three hyperparameters
+
+                            # Name of the directory and file where the features will be saved
+                            features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
+
+                            # Check if the directory exists, if not, report error, data mismatch
+                            if not os.path.exists(features_folder):
+                                print("Error, data mismatch, features folder doesn't exist in test classifier")
+
+                            feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
+                                k_segment) + ".npy"
+                            label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
+                                k_segment) + ".npy"
+                            feature_filename = os.path.join(features_folder, feature_filename_target)
+                            label_filename = os.path.join(features_folder, label_filename_target)
+
+                            # Check if the file doesn't exist
+                            if os.path.exists(feature_filename):
+                                features = np.load(feature_filename)
+                                labels = np.load(label_filename)
+
+                                # Train and evaluate the different classifiers outlined in training.py
+                                current_iteration += 1
+                                print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
+                                run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size,
+                                                               n_segments=n_segments, models_used=models_used, test_size=test_size_val)
+                                results.append(run_res)
+                                parameters.append(run_param)
+                            else:
+                                print(
+                                    "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
 
     # After the loop you can convert results to a DataFrame and analyze it
     results_df = pd.DataFrame(results)
-    return results_df
+    parameters_df = pd.DataFrame(parameters)
+    return results_df, parameters_df
 
 
 # Balancing Dataset Function
-def balance_dataset(features, labels, balance_method):
+def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
     # Check class distribution
     # Class 0: Negative Covid
     # Class 1: Positive Covid
-    # print("Before balancing:")
+    print("Before balancing:")
     class_0_sample_count = sum(labels == 0)
     class_1_sample_count = sum(labels == 1)
     total_original_samples = class_0_sample_count + class_1_sample_count
-    # print("Total Samples:", total_original_samples)
-    # print("Class 0:", class_0_sample_count)
-    # print("Class 1:", class_1_sample_count)
+    print("Total Samples:", total_original_samples)
+    print("Class 0:", class_0_sample_count)
+    print("Class 1:", class_1_sample_count)
 
     match balance_method:
         case "Resampling":
             # Apply Random Over Sampling and Under Sampling
             # Define the resampling strategy
-            over = RandomOverSampler(sampling_strategy=0.7)  # Oversample the minority to have 70% of the majority class
+            over = RandomOverSampler(sampling_strategy=oversampling_rate)  # Oversample the minority to have 70% of the majority class
             under = RandomUnderSampler(sampling_strategy=1.0)  # Undersample the majority to have equal to the minority
 
             # First apply oversampling
@@ -429,20 +451,21 @@ def balance_dataset(features, labels, balance_method):
             # print("After oversampling:")
             class_0_sample_count = sum(labels_oversampled == 0)
             class_1_sample_count = sum(labels_oversampled == 1)
-            # print("Total Samples:", class_0_sample_count + class_1_sample_count)
-            # print("Class 0:", class_0_sample_count)
-            # print("Class 1:", class_1_sample_count)
+            print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            print("Class 0:", class_0_sample_count)
+            print("Class 1:", class_1_sample_count)
 
             # Then apply undersampling
             features_combined, labels_combined = under.fit_resample(features_oversampled, labels_oversampled)
 
             # Check new class distribution
-            # print("After undersampling:")
+            print("After undersampling:")
             class_0_sample_count = sum(labels_combined == 0)
             class_1_sample_count = sum(labels_combined == 1)
-            # print("Total Samples:", class_0_sample_count + class_1_sample_count)
-            # print("Class 0:", class_0_sample_count)
-            # print("Class 1:", class_1_sample_count)
+            total_final_samples = class_0_sample_count + class_1_sample_count
+            print("Total Samples:", total_final_samples)
+            print("Class 0:", class_0_sample_count)
+            print("Class 1:", class_1_sample_count)
 
             return features_combined, labels_combined
         case "SMOTE":
@@ -450,9 +473,10 @@ def balance_dataset(features, labels, balance_method):
             # print("Before SMOTE:")
             class_0_sample_count = sum(labels == 0)
             class_1_sample_count = sum(labels == 1)
-            # print("Total Samples:", class_0_sample_count + class_1_sample_count)
-            # print("Class 0:", class_0_sample_count)
-            # print("Class 1:", class_1_sample_count)
+            total_original_samples = class_0_sample_count + class_1_sample_count
+            print("Total Samples:", total_original_samples)
+            print("Class 0:", class_0_sample_count)
+            print("Class 1:", class_1_sample_count)
 
             # Apply SMOTE
             smote = SMOTE()  # random_state case
@@ -463,9 +487,10 @@ def balance_dataset(features, labels, balance_method):
             # print("After SMOTE:")
             class_0_sample_count = sum(labels_res == 0)
             class_1_sample_count = sum(labels_res == 1)
-            # print("Total Samples:", class_0_sample_count + class_1_sample_count)
-            # print("Class 0:", class_0_sample_count)
-            # print("Class 1:", class_1_sample_count)
+            total_final_samples = class_0_sample_count + class_1_sample_count
+            print("Total Samples:", total_final_samples)
+            print("Class 0:", class_0_sample_count)
+            print("Class 1:", class_1_sample_count)
 
             return features_res, labels_res
         case _:
@@ -473,25 +498,32 @@ def balance_dataset(features, labels, balance_method):
 
 
 # Test training function
-def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, models_used=None):
+def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, models_used=None, test_size=0.2):
     if models_used is None:
         models_used = [0, 0, 0, 0, 0, 0]
         print("No model specified")
 
+    shapes = [f.shape for f in features]
+    unique_shapes = set(shapes)
+    for shape in unique_shapes:
+        print(f"Shape: {shape}, Count: {shapes.count(shape)}")
+
     # Balance dataset
     # Methods: Resampling, SMOTE
-    balance_method = "Resampling"
+    balance_method = "SMOTE"
 
     # Test NaN conflict resolution
     # Methods: imputing, dropping
-    test_nan_conflict_solving_method = "imputing"
+    test_nan_conflict_solving_method = "dropping"
     # features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
     # Split dataset
     # x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)  # random_state case
-    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2)
+    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=test_size)
+    print("x_train size: " + str(len(x_train)))
 
-    x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method)
+    oversampling_rate = 0.6
+    x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
 
     # Standardize features
     scaler = StandardScaler()
@@ -510,9 +542,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             # print("NaN values found in x_train, applying imputation.")
             imputer = SimpleImputer(strategy='mean')
             x_test = imputer.fit_transform(x_test)
+        print("x_test size: " + str(len(x_test)))
     elif test_nan_conflict_solving_method == "dropping":
         # Drop samples with NaN values in test dataset
-        # print("x_test size before dropping: " + str(len(x_test)))
+        print("x_test size before dropping: " + str(len(x_test)))
 
         # Create a mask for rows without NaN values
         mask = ~np.isnan(x_test).any(axis=1)
@@ -524,16 +557,23 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         x_test = x_test[mask]
         y_test = y_test[mask]
 
-        # ("x_test size after dropping: " + str(len(x_test)))
+        print("x_test size after dropping: " + str(len(x_test)))
 
     # Initialize results
-    results_model = {
+
+    parameters = {
+        'train_samples': str(len(x_train)),
+        'test_samples': str(len(x_test)),
+        'test_size %': test_size * 100,
         'dataset_balance_method': balance_method,
+        'oversampling rate': oversampling_rate,
         'test_nan_conflict_solving_method': test_nan_conflict_solving_method,
         'mfcc': n_mfcc,
         'frame_size': frame_size,
         'segments': n_segments,
     }
+
+    results_model = {}
 
     # Show iteration progress
     print("mfcc: " + str(n_mfcc))
@@ -626,7 +666,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         results_model['performance_metrics_mlp'] = performance_metrics_mlp
 
-    return results_model
+    return results_model, parameters
 
 
 # Convert models_used values to their names
@@ -646,15 +686,15 @@ def models_name_conv(model):
 
 
 # Function to display the results dataframe in a better way
-def test_display(results_df, models_used_str):
+def test_display(results_df, models_used_str, parameters_df):
     # Create a new DataFrame to store the results
-    expanded_results_df = pd.DataFrame()
+    # expanded_results_df = pd.DataFrame()
 
     # Print the entire DataFrame
     print("Metrics Used: [specificity, sensitivity, precision, accuracy, F1, AUC]")
     for perf_res in models_used_str:
         if perf_res in results_df:
-            print(perf_res)
+            # print(perf_res)
             metrics = results_df[perf_res]
             print(metrics.apply(lambda x: [f"{num:.4f}" for num in x]))
 
@@ -672,9 +712,9 @@ def test_display(results_df, models_used_str):
                 raise ValueError("The number of column names does not match the number of columns.")
 
             # Join the new columns with the expanded_results_df DataFrame
-            expanded_results_df = pd.concat([expanded_results_df, array_df], axis=1)
+            parameters_df = pd.concat([parameters_df, array_df], axis=1)
 
-            print(expanded_results_df)
+            # print(expanded_results_df)
 
             metrics_folder = "./" + data_dir_choice + "/model_metrics"
 
@@ -686,23 +726,23 @@ def test_display(results_df, models_used_str):
             current_date = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
             # Find the model with the best ROC curve for each model type used
-            max_row = expanded_results_df.loc[expanded_results_df[perf_res + "_AUC"].idxmax()]
+            max_row = parameters_df.loc[parameters_df[perf_res + "_AUC"].idxmax()]
             print(max_row)
 
             # Create a blank row to separate the best results
-            first_blank_row = pd.DataFrame([{}], columns=expanded_results_df.columns)
+            first_blank_row = pd.DataFrame([{}], columns=parameters_df.columns)
 
             # Create a second blank row to separate the best results
             # Adding the max row label of each model used
-            second_blank_row = pd.DataFrame({expanded_results_df.columns[0]: ["Best Model for " + perf_res]}, index=[0])
-            second_blank_row = second_blank_row.reindex(columns=expanded_results_df.columns, fill_value='')
+            second_blank_row = pd.DataFrame({parameters_df.columns[0]: ["Best Model for " + perf_res]}, index=[0])
+            second_blank_row = second_blank_row.reindex(columns=parameters_df.columns, fill_value='')
 
             # Append the blank rows followed by the max row to the DataFrame
-            expanded_results_df = pd.concat([expanded_results_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])],
+            parameters_df = pd.concat([parameters_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])],
                                             ignore_index=True)
 
             # Save the expanded DataFrame to a CSV file
-            expanded_results_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + current_date + '.csv',
+            parameters_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + current_date + '.csv',
                                        index=False)
 
 

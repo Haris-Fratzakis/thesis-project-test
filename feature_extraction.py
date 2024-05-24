@@ -64,7 +64,7 @@ def calculate_n_mels(segment_length, sample_rate, max_mels=40):
 
 
 # Adding noise if necessary to avoid nearly identical segments for kurtosis
-def add_noise(data, noise_level=1e-10):
+def add_noise(data, noise_level=1e-5):
     noise = np.random.normal(0, noise_level, data.shape)
     return data + noise
 
@@ -90,6 +90,7 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
 
         # Handle case where n_segments is greater than audio length
         if n_segments > len(audio):
+            print(len(audio))
             n_segments = len(audio)
 
         segment_length = len(audio) // n_segments
@@ -115,8 +116,9 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             if mfccs.shape[1] > 1:
                 # Check for variance and add noise if necessary to avoid unreliable kurtosis because of nearly identical data
                 if np.all(np.var(mfccs, axis=1) < 1e-10):
+                    pass
                     # print("Adding noise")
-                    mfccs = add_noise(mfccs)
+                    # mfccs = add_noise(mfccs, 1e-10)
                 kurtosis = scipy.stats.kurtosis(mfccs, axis=1, fisher=False)
                 kurtosis_reshaped = np.tile(kurtosis[:, np.newaxis], (1, mfccs.shape[1]))
             else:
