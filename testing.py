@@ -65,14 +65,14 @@ def test_modular():
     # Test
     k_values_mfcc = [1]
     k_values_frame = [8]
-    k_values_segment = [5, 7, 10, 12, 15]
+    k_values_segment = [5]
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [0, 1, 0, 0, 0, 0]
+    models_used = [0, 0, 0, 0, 1, 0]
     test_size = [0.3]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
@@ -522,15 +522,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=test_size)
     print("x_train size: " + str(len(x_train)))
 
-    oversampling_rate = 0.6
-    x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
-
-    # Standardize features
-    scaler = StandardScaler()
-    x_train = scaler.fit_transform(x_train_combined)
-    x_test = scaler.transform(x_test)
-
-    # Check for NaN values in the scaled data
+    # Check for NaN values in the data
     if np.any(np.isnan(x_train)):
         # print("NaN values found in x_train, applying imputation.")
         imputer = SimpleImputer(strategy='mean')
@@ -559,6 +551,14 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         print("x_test size after dropping: " + str(len(x_test)))
 
+    oversampling_rate = 0.6
+    x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
+
+    # Standardize features
+    scaler = StandardScaler()
+    x_train = scaler.fit_transform(x_train_combined)
+    x_test = scaler.transform(x_test)
+
     # Initialize results
 
     parameters = {
@@ -579,6 +579,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     print("mfcc: " + str(n_mfcc))
     print("frame_size: " + str(frame_size))
     print("segments: " + str(n_segments))
+
+    print("x_train shape" + str(x_train[0].shape))
 
     # Initialize all models
     # LR
@@ -665,6 +667,38 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         results_model['Hyper_MLP__learning_rate_init'] = model_mlp_hyper["learning_rate_init"]
 
         results_model['performance_metrics_mlp'] = performance_metrics_mlp
+    if models_used[4] == 1:
+        # cnn_hyper refers to the hyperparameters for cnn
+        # first slot is num_filters, the No. of Conv filters
+        # Syntax: [a,b,c], Usage: 'num_filters': [3 * 2 ** k4 for k4 in range(a, b)],
+        # second slot is kernel_size, which controls the Kernel size
+        # Syntax: [a,b], Usage: 'kernel_size': range(a, b)
+        # third slot is dropout_rate, which controls the Dropout rate
+        # Syntax: [a,b,c], Usage: 'dropout_rate': range(a, b, c)
+        # fourth slot is dense_size, the Dense layer size
+        # Syntax: [a,b], Usage: 'dense_size': [2 ** k5 for k5 in range(a, b)],
+        # fifth slot is batch_size, which controls the Batch Size
+        # Syntax: [a,b], Usage: 'batch_size': [2 ** k8 for k8 in range(a, b)]
+        # sixth slot is epochs, which controls the No. of epochs
+        # Syntax: [a,b,c], Usage: 'epochs': range(a, b, c)
+
+        cnn_hyper = [[3, 6], [2, 4], [0.1, 0.6, 0.2], [4, 6], [6, 9], [10, 260, 20]]
+        # Training
+        model_cnn, model_cnn_hyper = training.cnn_training(x_train, y_train_combined, cnn_hyper)
+
+        # Evaluating
+        y_pred_proba = model_cnn.predict_proba(x_test)[:, 1]
+        performance_metrics_cnn = training.evaluate_model(y_test, y_pred_proba)
+
+        # Saving the best hyperparameters
+        results_model['Hyper_CNN__num_filters'] = model_cnn_hyper["num_filters"]
+        results_model['Hyper_CNN__kernel_size'] = model_cnn_hyper["kernel_size"]
+        results_model['Hyper_CNN__dropout_rate'] = model_cnn_hyper["dropout_rate"]
+        results_model['Hyper_CNN__dense_size'] = model_cnn_hyper["dense_size"]
+        results_model['Hyper_CNN__batch_size'] = model_cnn_hyper["batch_size"]
+        results_model['Hyper_CNN__epochs'] = model_cnn_hyper["epochs"]
+
+        results_model['performance_metrics_cnn'] = performance_metrics_cnn
 
     return results_model, parameters
 
@@ -676,6 +710,8 @@ def models_name_conv(model):
         1: "performance_metrics_knn",
         2: "performance_metrics_svm",
         3: "performance_metrics_mlp",
+        4: "performance_metrics_cnn",
+        5: "performance_metrics_lstm",
     }
 
     # get() method of dictionary data type returns

@@ -7,10 +7,11 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Conv2D, Flatten, Dense, Conv1D, MaxPooling1D, GlobalAveragePooling2D, LSTM
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense, LSTM
+from scikeras.wrappers import KerasClassifier
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.applications.resnet50 import ResNet50
-from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, \
-    roc_curve, auc
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc
 import matplotlib.pyplot as plt
 
 
@@ -223,34 +224,92 @@ def mlp_training(x_train, y_train, mlp_hyper):
 
 
 # Convolutional Neural Network Model
-def cnn_training(x_train, y_train):
-    # Initialize model
-    model_cnn = Sequential([
-        Conv1D(32, kernel_size=3, activation='relu', input_shape=(x_train.shape[1], x_train.shape[2])),
-        MaxPooling1D(pool_size=2),
-        Flatten(),
-        Dense(64, activation='relu'),
-        Dense(1, activation='sigmoid')
-    ])
+def cnn_training(x_train, y_train, cnn_hyper):
+    # Define the model creation function
+    def create_model(num_filters=24, kernel_size=2, dropout_rate=0.1, dense_size=16):
+        model = Sequential()
+        model.add(Conv2D(filters=num_filters, kernel_size=(kernel_size, kernel_size), activation='relu',
+                         input_shape=(64, 64, 1)))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Dropout(dropout_rate))
+        model.add(Flatten())
+        model.add(Dense(dense_size, activation='relu'))
+        model.add(Dropout(dropout_rate))
+        model.add(Dense(8, activation='relu'))  # Dense layer with 8 units
+        model.add(Dense(2, activation='softmax'))  # Output layer for binary classification
+        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        return model
 
-    model_cnn.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    model_cnn.fit(x_train, y_train, epochs=10, batch_size=32)
+    # Wrap the Keras model with KerasClassifier
+    # TODO Fix the CNN Classifier
+    cnn = KerasClassifier(build_fn=create_model, verbose=0)
 
-    return model_cnn
+    # Define the parameter grid
+    param_grid = {
+        'num_filters': [3 * 2 ** k4 for k4 in range(cnn_hyper[0][0], cnn_hyper[0][1])],   # 3 × 2k4 where k4 = 3, 4, 5
+        'kernel_size': range(cnn_hyper[1][0], cnn_hyper[1][1]),     # 2 and 3
+        'dropout_rate': np.arange(cnn_hyper[2][0], cnn_hyper[2][1], cnn_hyper[2][2]),   # 0.1 to 0.5 in steps of 0.2
+        'dense_size': [2 ** k5 for k5 in range(cnn_hyper[3][0], cnn_hyper[3][1])],   # 2k5 where k5 = 4, 5
+        'batch_size': [2 ** k8 for k8 in range(cnn_hyper[4][0], cnn_hyper[4][1])],  # 2k8 where k8 = 6, 7, 8
+        'epochs': range(cnn_hyper[5][0], cnn_hyper[5][1], cnn_hyper[5][2])  # 10 to 250 in steps of 20
+    }
+
+    print("CNN Classifier Start")
+
+    # Create the GridSearchCV object
+    grid_search = GridSearchCV(estimator=cnn, param_grid=param_grid, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)
+
+    # Fit the GridSearchCV instance to the training data
+    grid_search.fit(x_train, y_train)
+
+    # Retrieve the best estimator (model with the best hyperparameters)
+    model_cnn = grid_search.best_estimator_
+    model_cnn_hyper = grid_search.best_params_
+
+    return model_cnn, model_cnn_hyper
 
 
 # Long Short-Term Memory Model
 def lstm_training(x_train, y_train):
-    # Initialize model
-    model_lstm = Sequential([
-        LSTM(64, input_shape=(x_train.shape[1], x_train.shape[2])),
-        Dense(1, activation='sigmoid')
-    ])
+    # Define a function to create the model, required for KerasClassifier
+    def create_model(dropout_rate, dense_size, lstm_units, learning_rate):
+        model = Sequential()
+        model.add(LSTM(lstm_units, activation='relu',  input_shape=(64, 64, 1), dropout=dropout_rate))
+        model.add(Flatten())
+        model.add(Dense(dense_size, activation='relu'))
+        model.add(Dense(8, activation='relu'))
+        model.add(Dense(2, activation='softmax'))
 
-    model_lstm.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    model_lstm.fit(x_train, y_train, epochs=10, batch_size=32)
+        optimizer = Adam(learning_rate=learning_rate)
+        model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+        return model
 
-    return model_lstm
+    # Create the KerasClassifier
+    lstm = KerasClassifier(build_fn=create_model, verbose=0)
+
+    # Define the parameter grid
+    param_grid = {
+        'dropout_rate': np.arange(0.1, 0.6, 0.2),   # 0.1 to 0.5 in steps of 0.2
+        'dense_size': [2 ** k5 for k5 in [4, 5]],   # 2k5 where k5 = 4, 5
+        'lstm_units': [2 ** k6 for k6 in [6, 7, 8]],    # 2k6 where k6 = 6, 7, 8
+        'learning_rate': [10 ** k7 for k7 in [-2, -3, -4]],  # 10k7 where k7 = 􀀀 2, 􀀀 3, 􀀀 4
+        'batch_size': [2 ** k8 for k8 in [6, 7, 8]],    # 2k8 where k8 = 6, 7, 8
+        'epochs': np.arange(10, 251, 20)  # 10 to 250 in steps of 20
+    }
+
+    print("LSTM Classifier Start")
+
+    # Create the GridSearchCV object
+    grid_search = GridSearchCV(estimator=lstm, param_grid=param_grid, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)
+
+    # Fit the GridSearchCV instance to the training data
+    grid_search.fit(x_train, y_train)
+
+    # Retrieve the best estimator (model with the best hyperparameters)
+    model_lstm = grid_search.best_estimator_
+    model_lstm_hyper = grid_search.best_params_
+
+    return model_lstm, model_lstm_hyper
 
 
 # Evaluate Performance of Classifiers
