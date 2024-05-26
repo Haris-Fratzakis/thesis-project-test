@@ -4,8 +4,8 @@ import numpy as np
 from scipy.stats import mode
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.decomposition import PCA
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from datetime import datetime
@@ -63,16 +63,16 @@ def test_modular():
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [1]
-    k_values_frame = [8]
-    k_values_segment = [5]
+    k_values_mfcc = [1, 2, 3, 4, 5]
+    k_values_frame = [8, 9, 10, 11, 12]
+    k_values_segment = [5, 7, 10, 12, 15]
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [0, 0, 0, 0, 1, 0]
+    models_used = [1, 1, 0, 0, 0, 0]
     test_size = [0.3]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
@@ -514,7 +514,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
     # Test NaN conflict resolution
     # Methods: imputing, dropping
-    test_nan_conflict_solving_method = "dropping"
+    test_nan_conflict_solving_method = "imputing"
     # features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
     # Split dataset
@@ -559,11 +559,30 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     x_train = scaler.fit_transform(x_train_combined)
     x_test = scaler.transform(x_test)
 
+    # PCA to reduce the dimensionality of the features
+
+    # Specify the number of principal components
+    # n_components = 100  # Number of principal components to keep
+    # pca = PCA(n_components=n_components)
+    # reduced_x_train = pca.fit_transform(x_train)
+    # reduced_x_test = pca.transform(x_test)
+
+    # ALTERNATIVE: Specify the amount of variance to retain
+    variance_ratio = 0.95  # Retain 95% of the variance
+    pca = PCA(n_components=variance_ratio)
+    reduced_x_train = pca.fit_transform(x_train)
+    reduced_x_test = pca.transform(x_test)
+
+    print("reduced_x_train: " + str(reduced_x_train.shape))
+    print("reduced_x_test: " + str(reduced_x_test.shape))
+
     # Initialize results
 
     parameters = {
         'train_samples': str(len(x_train)),
+        'train_samples_reduced': str(len(reduced_x_train)),
         'test_samples': str(len(x_test)),
+        'test_samples_reduced': str(len(reduced_x_test)),
         'test_size %': test_size * 100,
         'dataset_balance_method': balance_method,
         'oversampling rate': oversampling_rate,
@@ -580,8 +599,6 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     print("frame_size: " + str(frame_size))
     print("segments: " + str(n_segments))
 
-    print("x_train shape" + str(x_train[0].shape))
-
     # Initialize all models
     # LR
     if models_used[0] == 1:
@@ -591,11 +608,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         lr_hyper = [[-7, 7, 15]]
         # Training
-        model_lr, model_lr_hyper = training.lr_training(x_train, y_train_combined, lr_hyper)
+        model_lr, model_lr_hyper = training.lr_training(reduced_x_train, y_train_combined, lr_hyper)
         # model_lr = training.lr_training(x_train, y_train)
 
         # Evaluating
-        y_pred_proba = model_lr.predict_proba(x_test)[:, 1]
+        y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
         performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
 
         # Saving the best hyperparameters
@@ -612,10 +629,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         knn_hyper = [[10, 101, 10], [5, 31, 5]]
         # Training
-        model_knn, model_knn_hyper = training.knn_training(x_train, y_train_combined, knn_hyper)
+        model_knn, model_knn_hyper = training.knn_training(reduced_x_train, y_train_combined, knn_hyper)
 
         # Evaluating
-        y_pred_proba = model_knn.predict_proba(x_test)[:, 1]
+        y_pred_proba = model_knn.predict_proba(reduced_x_test)[:, 1]
         performance_metrics_knn = training.evaluate_model(y_test, y_pred_proba)
 
         # Saving the best hyperparameters
@@ -633,10 +650,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         svm_hyper = [[-7, 7, 15], [-7, 7, 15]]
         # Training
-        model_svm, model_svm_hyper = training.svm_training(x_train, y_train_combined, svm_hyper)
+        model_svm, model_svm_hyper = training.svm_training(reduced_x_train, y_train_combined, svm_hyper)
 
         # Evaluating
-        y_pred_proba = model_svm.predict_proba(x_test)[:, 1]
+        y_pred_proba = model_svm.predict_proba(reduced_x_test)[:, 1]
         performance_metrics_svm = training.evaluate_model(y_test, y_pred_proba)
 
         # Saving the best hyperparameters
@@ -655,10 +672,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         mlp_hyper = [[10, 101, 10], [-7, 8], [0.05, 1.05, 0.05]]
         # Training
-        model_mlp, model_mlp_hyper = training.mlp_training(x_train, y_train_combined, mlp_hyper)
+        model_mlp, model_mlp_hyper = training.mlp_training(reduced_x_train, y_train_combined, mlp_hyper)
 
         # Evaluating
-        y_pred_proba = model_mlp.predict_proba(x_test)[:, 1]
+        y_pred_proba = model_mlp.predict_proba(reduced_x_test)[:, 1]
         performance_metrics_mlp = training.evaluate_model(y_test, y_pred_proba)
 
         # Saving the best hyperparameters
@@ -684,10 +701,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         cnn_hyper = [[3, 6], [2, 4], [0.1, 0.6, 0.2], [4, 6], [6, 9], [10, 260, 20]]
         # Training
-        model_cnn, model_cnn_hyper = training.cnn_training(x_train, y_train_combined, cnn_hyper)
+        model_cnn, model_cnn_hyper = training.cnn_training(reduced_x_train, y_train_combined, cnn_hyper)
 
         # Evaluating
-        y_pred_proba = model_cnn.predict_proba(x_test)[:, 1]
+        y_pred_proba = model_cnn.predict_proba(reduced_x_test)[:, 1]
         performance_metrics_cnn = training.evaluate_model(y_test, y_pred_proba)
 
         # Saving the best hyperparameters

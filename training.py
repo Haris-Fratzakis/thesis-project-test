@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from keras.src.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -7,9 +8,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense, LSTM
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense, LSTM, Input
 from scikeras.wrappers import KerasClassifier
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, SGD
+from tensorflow.keras.regularizers import l2
 from tensorflow.keras.applications.resnet50 import ResNet50
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc
 import matplotlib.pyplot as plt
@@ -161,7 +163,7 @@ def svm_training(x_train, y_train, svm_hyper):
     }
 
     # Create an SVM classifier instance
-    svm = SVC(probability=True, max_iter=5000)
+    svm = SVC(probability=True, max_iter=3000)
 
     print("SVM Classifier Start")
     # Create a GridSearchCV instance
@@ -183,7 +185,7 @@ def mlp_training(x_train, y_train, mlp_hyper):
     param_grid = {
         'hidden_layer_sizes': [(n,) for n in range(mlp_hyper[0][0], mlp_hyper[0][1], mlp_hyper[0][2])],  # (10,), (20,), ..., (100,)
         'alpha': [10 ** i for i in range(mlp_hyper[1][0], mlp_hyper[1][1])],  # 10^-7, 10^-6, ..., 10^7
-        'learning_rate_init': np.arange(mlp_hyper[2][0], mlp_hyper[2][1], mlp_hyper[2][2])  # 0, 0.05, ..., 1
+        'learning_rate_init': np.arange(mlp_hyper[2][0], mlp_hyper[2][1], mlp_hyper[2][2])  # 0.05, 0.1, ..., 1
     }
 
     # Initialize model
@@ -194,19 +196,35 @@ def mlp_training(x_train, y_train, mlp_hyper):
     # ])
 
     # Modify the MLPClassifier to catch and handle specific errors that occur due to non-finite weights:
-    class RobustMLPClassifier(MLPClassifier):
-        def fit(self, x, y):
-            try:
-                super().fit(x, y)
-            except ValueError as e:
-                if 'non-finite' in str(e):
-                    # print(f"Skipping non-finite weights error: {e}")
-                    return None
-                else:
-                    raise
+    # class RobustMLPClassifier(MLPClassifier):
+    #     def fit(self, x, y):
+    #         try:
+    #             super().fit(x, y)
+    #         except ValueError as e:
+    #             if 'non-finite' in str(e):
+    #                 # print(f"Skipping non-finite weights error: {e}")
+    #                 return None
+    #             else:
+    #                 raise
+
+    # Define a function to create the Keras model
+    def create_model(hidden_layer_sizes=(100,), learning_rate_init=0.001, alpha=0.0001, clip_norm=1.0):
+        model = Sequential()
+        model.add(Input(shape=(x_train.shape[1],)))
+        model.add(Dense(hidden_layer_sizes[0], activation='relu', kernel_regularizer=l2(alpha)))
+        for units in hidden_layer_sizes[1:]:
+            model.add(Dense(units, activation='relu', kernel_regularizer=l2(alpha)))
+        model.add(Dense(1, activation='sigmoid'))  # Use 'softmax' and change units for multi-class classification
+
+        optimizer = SGD(learning_rate=learning_rate_init, momentum=0.9, nesterov=True, clipnorm=clip_norm)
+        model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+
+        return model
+
 
     # Create the MLPClassifier
-    mlp = RobustMLPClassifier(max_iter=1000, solver='sgd', early_stopping=True, n_iter_no_change=10)
+    # mlp = RobustMLPClassifier(max_iter=1000, solver='sgd', early_stopping=True, n_iter_no_change=10)
+    mlp = KerasClassifier(model=create_model, clip_norm=1.0, hidden_layer_sizes=(10,), alpha=1e-07, learning_rate_init=0.05, epochs=100, batch_size=32, verbose=0)
 
     print("MLP Classifier Start")
 
@@ -256,11 +274,14 @@ def cnn_training(x_train, y_train, cnn_hyper):
 
     print("CNN Classifier Start")
 
+    # Define the early stopping callback
+    early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+
     # Create the GridSearchCV object
     grid_search = GridSearchCV(estimator=cnn, param_grid=param_grid, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)
 
     # Fit the GridSearchCV instance to the training data
-    grid_search.fit(x_train, y_train)
+    grid_search.fit(x_train, y_train, callbacks=[early_stopping])
 
     # Retrieve the best estimator (model with the best hyperparameters)
     model_cnn = grid_search.best_estimator_
