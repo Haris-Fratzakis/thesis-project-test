@@ -342,7 +342,7 @@ def evaluate_model(y_true, y_pred_proba, threshold=0.5):
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
     specificity = tn / (tn + fp)
     sensitivity = tp / (tp + fn)
-    precision = precision_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred, zero_division=0)
     accuracy = accuracy_score(y_true, y_pred)
     f1 = f1_score(y_true, y_pred)
     auc = roc_auc_score(y_true, y_pred_proba)  # AUC requires probability scores of the positive class

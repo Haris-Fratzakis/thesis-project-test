@@ -4,8 +4,10 @@ import numpy as np
 from scipy.stats import mode
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
+from sklearn.ensemble import VotingClassifier
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.decomposition import PCA
+from sklearn.utils import shuffle
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from datetime import datetime
@@ -63,16 +65,16 @@ def test_modular():
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [1, 2, 3, 4, 5]
-    k_values_frame = [8, 9, 10, 11, 12]
-    k_values_segment = [5, 7, 10, 12, 15]
+    k_values_mfcc = [1]
+    k_values_frame = [8]
+    k_values_segment = [5]
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
-    # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [1, 1, 0, 0, 0, 0]
+    # slots are [LR, KNN, SVM, MLP, CNN, LSTM, TestUsageModel]
+    models_used = [0, 0, 0, 0, 0, 0, 1]
     test_size = [0.3]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
@@ -517,6 +519,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     test_nan_conflict_solving_method = "imputing"
     # features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
+    # Test Ensemble Learning with majority class split
+    # Method: 1 for normal learning, other odd values for ensemble learning. Most balanced ensemble value is 3
+    dataset_splitting = 3
+
     # Split dataset
     # x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)  # random_state case
     x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=test_size)
@@ -552,7 +558,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         print("x_test size after dropping: " + str(len(x_test)))
 
     oversampling_rate = 0.6
-    x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
+    if dataset_splitting == 1:
+        x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
+    else:
+        x_train_combined = x_train
+        y_train_combined = y_train
 
     # Standardize features
     scaler = StandardScaler()
@@ -576,14 +586,16 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     print("reduced_x_train: " + str(reduced_x_train.shape))
     print("reduced_x_test: " + str(reduced_x_test.shape))
 
+    # TODO Investing the balance of test dataset
     # Initialize results
 
     parameters = {
-        'train_samples': str(len(x_train)),
-        'train_samples_reduced': str(len(reduced_x_train)),
-        'test_samples': str(len(x_test)),
-        'test_samples_reduced': str(len(reduced_x_test)),
+        'train_samples_number': str(len(x_train)),
+        'train_samples_reduced_number': str(len(reduced_x_train)),
+        'test_samples_number': str(len(x_test)),
+        'test_samples_reduced_number': str(len(reduced_x_test)),
         'test_size %': test_size * 100,
+        'ensemble learning groups': dataset_splitting,
         'dataset_balance_method': balance_method,
         'oversampling rate': oversampling_rate,
         'test_nan_conflict_solving_method': test_nan_conflict_solving_method,
@@ -607,18 +619,91 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         # Syntax: [a,b,c], Usage: 'C': np.logspace(a, b, c)
 
         lr_hyper = [[-7, 7, 15]]
-        # Training
-        model_lr, model_lr_hyper = training.lr_training(reduced_x_train, y_train_combined, lr_hyper)
-        # model_lr = training.lr_training(x_train, y_train)
+        if dataset_splitting > 1:
+            # Separate the majority and minority classes
+            # Assuming you have features (X) and labels (y) as lists or arrays
+            x = np.array(reduced_x_train)  # Convert to numpy array if they are not already
+            y = np.array(y_train_combined)  # Convert to numpy array if they are not already
 
-        # Evaluating
-        y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
-        performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+            # Separate the majority and minority classes
+            minority_class_indices = np.where(y == 1)[0]  # Assuming minority class label is 1
+            majority_class_indices = np.where(y == 0)[0]  # Assuming majority class label is 0
 
-        # Saving the best hyperparameters
-        results_model['Hyper_LR__C'] = model_lr_hyper["C"]
+            x_minority = x[minority_class_indices]
+            y_minority = y[minority_class_indices]
 
-        results_model['performance_metrics_lr'] = performance_metrics_lr
+            x_majority = x[majority_class_indices]
+            y_majority = y[majority_class_indices]
+
+            # Shuffle the majority class
+            # x_majority, y_majority = shuffle(x_majority, y_majority, random_state=42) # random state case
+            x_majority, y_majority = shuffle(x_majority, y_majority)
+
+            # Split the majority class into three parts
+            split_size = len(x_majority) // 3
+
+            x_majority_split_1 = x_majority[:split_size]
+            y_majority_split_1 = y_majority[:split_size]
+
+            x_majority_split_2 = x_majority[split_size:2 * split_size]
+            y_majority_split_2 = y_majority[split_size:2 * split_size]
+
+            x_majority_split_3 = x_majority[2 * split_size:]
+            y_majority_split_3 = y_majority[2 * split_size:]
+
+            # Create three balanced datasets
+            x1 = np.concatenate((x_minority, x_majority_split_1), axis=0)
+            y1 = np.concatenate((y_minority, y_majority_split_1), axis=0)
+
+            x2 = np.concatenate((x_minority, x_majority_split_2), axis=0)
+            y2 = np.concatenate((y_minority, y_majority_split_2), axis=0)
+
+            x3 = np.concatenate((x_minority, x_majority_split_3), axis=0)
+            y3 = np.concatenate((y_minority, y_majority_split_3), axis=0)
+
+            # Shuffle the datasets to mix minority and majority instances
+            # random state cases
+            # x1, y1 = shuffle(x1, y1, random_state=42)
+            # x2, y2 = shuffle(x2, y2, random_state=42)
+            # x3, y3 = shuffle(x3, y3, random_state=42)
+            x1, y1 = shuffle(x1, y1)
+            x2, y2 = shuffle(x2, y2)
+            x3, y3 = shuffle(x3, y3)
+
+            print(len(x1))
+            print(len(x2))
+            print(len(x3))
+
+            # Training
+            model_lr_1, model_lr_hyper_1 = training.lr_training(x1, y1, lr_hyper)
+            model_lr_2, model_lr_hyper_2 = training.lr_training(x2, y2, lr_hyper)
+            model_lr_3, model_lr_hyper_3 = training.lr_training(x3, y3, lr_hyper)
+
+            # Create a voting classifier
+            ensemble = VotingClassifier(estimators=[('lr1', model_lr_1), ('lr2', model_lr_2), ('lr3', model_lr_3)], voting='soft')
+
+            ensemble.fit(reduced_x_test, y_test)
+
+            # Evaluating
+            y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+            performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+
+            # Saving the best hyperparameters
+            results_model['Hyper_LR__C'] = model_lr_hyper_1["C"]
+            results_model['performance_metrics_lr'] = performance_metrics_lr
+
+        else:
+            # Training
+            model_lr, model_lr_hyper = training.lr_training(reduced_x_train, y_train_combined, lr_hyper)
+
+            # Evaluating
+            y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
+            performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+
+            # Saving the best hyperparameters
+            results_model['Hyper_LR__C'] = model_lr_hyper["C"]
+
+            results_model['performance_metrics_lr'] = performance_metrics_lr
 
     if models_used[1] == 1:
         # knn_hyper refers to the hyperparameters for knn
@@ -628,18 +713,92 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         # Syntax: [a,b,c], Usage: 'leaf_size': list(range(a, b, c)),
 
         knn_hyper = [[10, 101, 10], [5, 31, 5]]
-        # Training
-        model_knn, model_knn_hyper = training.knn_training(reduced_x_train, y_train_combined, knn_hyper)
+        if dataset_splitting > 1:
+            # Separate the majority and minority classes
+            # Assuming you have features (X) and labels (y) as lists or arrays
+            x = np.array(reduced_x_train)  # Convert to numpy array if they are not already
+            y = np.array(y_train_combined)  # Convert to numpy array if they are not already
 
-        # Evaluating
-        y_pred_proba = model_knn.predict_proba(reduced_x_test)[:, 1]
-        performance_metrics_knn = training.evaluate_model(y_test, y_pred_proba)
+            # Separate the majority and minority classes
+            minority_class_indices = np.where(y == 1)[0]  # Assuming minority class label is 1
+            majority_class_indices = np.where(y == 0)[0]  # Assuming majority class label is 0
 
-        # Saving the best hyperparameters
-        results_model['Hyper_kNN__n_neighbors'] = model_knn_hyper["n_neighbors"]
-        results_model['Hyper_kNN__leaf_size'] = model_knn_hyper["leaf_size"]
+            x_minority = x[minority_class_indices]
+            y_minority = y[minority_class_indices]
 
-        results_model['performance_metrics_knn'] = performance_metrics_knn
+            x_majority = x[majority_class_indices]
+            y_majority = y[majority_class_indices]
+
+            # Shuffle the majority class
+            # x_majority, y_majority = shuffle(x_majority, y_majority, random_state=42) # random state case
+            x_majority, y_majority = shuffle(x_majority, y_majority)
+
+            # Split the majority class into three parts
+            split_size = len(x_majority) // 3
+
+            x_majority_split_1 = x_majority[:split_size]
+            y_majority_split_1 = y_majority[:split_size]
+
+            x_majority_split_2 = x_majority[split_size:2 * split_size]
+            y_majority_split_2 = y_majority[split_size:2 * split_size]
+
+            x_majority_split_3 = x_majority[2 * split_size:]
+            y_majority_split_3 = y_majority[2 * split_size:]
+
+            # Create three balanced datasets
+            x1 = np.concatenate((x_minority, x_majority_split_1), axis=0)
+            y1 = np.concatenate((y_minority, y_majority_split_1), axis=0)
+
+            x2 = np.concatenate((x_minority, x_majority_split_2), axis=0)
+            y2 = np.concatenate((y_minority, y_majority_split_2), axis=0)
+
+            x3 = np.concatenate((x_minority, x_majority_split_3), axis=0)
+            y3 = np.concatenate((y_minority, y_majority_split_3), axis=0)
+
+            # Shuffle the datasets to mix minority and majority instances
+            # random state cases
+            # x1, y1 = shuffle(x1, y1, random_state=42)
+            # x2, y2 = shuffle(x2, y2, random_state=42)
+            # x3, y3 = shuffle(x3, y3, random_state=42)
+            x1, y1 = shuffle(x1, y1)
+            x2, y2 = shuffle(x2, y2)
+            x3, y3 = shuffle(x3, y3)
+
+            print(len(x1))
+            print(len(x2))
+            print(len(x3))
+
+            # Training
+            model_knn_1, model_knn_hyper_1 = training.knn_training(x1, y1, knn_hyper)
+            model_knn_2, model_knn_hyper_2 = training.knn_training(x2, y2, knn_hyper)
+            model_knn_3, model_knn_hyper_3 = training.knn_training(x3, y3, knn_hyper)
+
+            # Create a voting classifier
+            ensemble = VotingClassifier(estimators=[('knn1', model_knn_1), ('knn2', model_knn_2), ('knn3', model_knn_3)], voting='soft')
+
+            ensemble.fit(reduced_x_test, y_test)
+
+            # Make predictions and evaluate the ensemble model
+            y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+            performance_metrics_knn = training.evaluate_model(y_test, y_pred_proba)
+
+            # Saving the best hyperparameters
+            results_model['Hyper_kNN__n_neighbors'] = model_knn_hyper_1["n_neighbors"]
+            results_model['Hyper_kNN__leaf_size'] = model_knn_hyper_1["leaf_size"]
+            results_model['performance_metrics_knn'] = performance_metrics_knn
+        else:
+            # Training
+            model_knn, model_knn_hyper = training.knn_training(reduced_x_train, y_train_combined, knn_hyper)
+
+            # Evaluating
+            y_pred_proba = model_knn.predict_proba(reduced_x_test)[:, 1]
+            performance_metrics_knn = training.evaluate_model(y_test, y_pred_proba)
+
+            # Saving the best hyperparameters
+            results_model['Hyper_kNN__n_neighbors'] = model_knn_hyper["n_neighbors"]
+            results_model['Hyper_kNN__leaf_size'] = model_knn_hyper["leaf_size"]
+
+            results_model['performance_metrics_knn'] = performance_metrics_knn
 
     if models_used[2] == 1:
         # svm_hyper refers to the hyperparameters for svm
@@ -716,6 +875,105 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         results_model['Hyper_CNN__epochs'] = model_cnn_hyper["epochs"]
 
         results_model['performance_metrics_cnn'] = performance_metrics_cnn
+    if models_used[6] == 1:
+        lr_hyper = [[-7, 7, 15]]
+        if dataset_splitting > 1:
+            # Separate the majority and minority classes
+            # Assuming you have features (X) and labels (y) as lists or arrays
+            x = np.array(reduced_x_train)  # Convert to numpy array if they are not already
+            y = np.array(y_train_combined)  # Convert to numpy array if they are not already
+
+            # Separate the majority and minority classes
+            minority_class_indices = np.where(y == 1)[0]  # Assuming minority class label is 1
+            majority_class_indices = np.where(y == 0)[0]  # Assuming majority class label is 0
+
+            x_minority = x[minority_class_indices]
+            y_minority = y[minority_class_indices]
+
+            x_majority = x[majority_class_indices]
+            y_majority = y[majority_class_indices]
+
+            # Shuffle the majority class
+            # x_majority, y_majority = shuffle(x_majority, y_majority, random_state=42) # random state case
+            x_majority, y_majority = shuffle(x_majority, y_majority)
+
+            # Split the majority class into three parts
+            split_size = len(x_majority) // 3
+
+            x_majority_split_1 = x_majority[:split_size]
+            y_majority_split_1 = y_majority[:split_size]
+
+            x_majority_split_2 = x_majority[split_size:2 * split_size]
+            y_majority_split_2 = y_majority[split_size:2 * split_size]
+
+            x_majority_split_3 = x_majority[2 * split_size:]
+            y_majority_split_3 = y_majority[2 * split_size:]
+
+            # Create three balanced datasets
+            x1 = np.concatenate((x_minority, x_majority_split_1), axis=0)
+            y1 = np.concatenate((y_minority, y_majority_split_1), axis=0)
+
+            x2 = np.concatenate((x_minority, x_majority_split_2), axis=0)
+            y2 = np.concatenate((y_minority, y_majority_split_2), axis=0)
+
+            x3 = np.concatenate((x_minority, x_majority_split_3), axis=0)
+            y3 = np.concatenate((y_minority, y_majority_split_3), axis=0)
+
+            # Shuffle the datasets to mix minority and majority instances
+            # random state cases
+            # x1, y1 = shuffle(x1, y1, random_state=42)
+            # x2, y2 = shuffle(x2, y2, random_state=42)
+            # x3, y3 = shuffle(x3, y3, random_state=42)
+            x1, y1 = shuffle(x1, y1)
+            x2, y2 = shuffle(x2, y2)
+            x3, y3 = shuffle(x3, y3)
+
+            print(len(x1))
+            print(len(x2))
+            print(len(x3))
+
+            # Training
+            model_lr_1, model_lr_hyper_1 = training.lr_training(x1, y1, lr_hyper)
+            model_lr_2, model_lr_hyper_2 = training.lr_training(x2, y2, lr_hyper)
+            model_lr_3, model_lr_hyper_3 = training.lr_training(x3, y3, lr_hyper)
+
+            # Create a voting classifier
+            # ensemble = VotingClassifier(estimators=[('lr1', model_lr_1), ('lr2', model_lr_2), ('lr3', model_lr_3)], voting='soft')
+
+            # ensemble.fit(reduced_x_test, y_test)
+
+            # Evaluating
+            # y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+            # performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+
+            # Saving the best hyperparameters
+            results_model['Hyper_LR__C'] = model_lr_hyper_1["C"]
+            # results_model['performance_metrics_lr'] = performance_metrics_lr
+
+            # TEMP
+            knn_hyper = [[10, 101, 10], [5, 31, 5]]
+            # Training
+            model_knn_1, model_knn_hyper_1 = training.knn_training(x1, y1, knn_hyper)
+            model_knn_2, model_knn_hyper_2 = training.knn_training(x2, y2, knn_hyper)
+            model_knn_3, model_knn_hyper_3 = training.knn_training(x3, y3, knn_hyper)
+
+            # Create a voting classifier
+            ensemble = VotingClassifier(
+                estimators=[('lr1', model_lr_1), ('lr2', model_lr_2), ('lr3', model_lr_3), ('knn1', model_knn_1),
+                            ('knn2', model_knn_2), ('knn3', model_knn_3)], voting='soft')
+
+            ensemble.fit(reduced_x_test, y_test)
+
+            # Make predictions and evaluate the ensemble model
+            y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+            performance_metrics_test = training.evaluate_model(y_test, y_pred_proba)
+
+            # Saving the best hyperparameters
+            results_model['Hyper_kNN__n_neighbors'] = model_knn_hyper_1["n_neighbors"]
+            results_model['Hyper_kNN__leaf_size'] = model_knn_hyper_1["leaf_size"]
+            # results_model['performance_metrics_knn'] = performance_metrics_knn
+
+            results_model['performance_metrics_test'] = performance_metrics_test
 
     return results_model, parameters
 
@@ -729,6 +987,7 @@ def models_name_conv(model):
         3: "performance_metrics_mlp",
         4: "performance_metrics_cnn",
         5: "performance_metrics_lstm",
+        6: "performance_metrics_test"
     }
 
     # get() method of dictionary data type returns
