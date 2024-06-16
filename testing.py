@@ -65,17 +65,17 @@ def test_modular():
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [1]
-    k_values_frame = [8]
-    k_values_segment = [5]
+    k_values_mfcc = [1, 2, 3, 4, 5]
+    k_values_frame = [8, 9, 10, 11, 12]
+    k_values_segment = [5, 7, 10, 12, 15]
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM, TestUsageModel]
-    models_used = [0, 0, 0, 0, 0, 0, 1]
-    test_size = [0.3]
+    models_used = [1, 1, 0, 0, 0, 0, 0]
+    test_size = [0.4]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
     results_df, parameters_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
@@ -524,8 +524,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     dataset_splitting = 3
 
     # Split dataset
-    # x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)  # random_state case
-    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=test_size)
+    # x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, stratify=labels, random_state=42)  # random_state case
+    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=test_size, stratify=labels)
     print("x_train size: " + str(len(x_train)))
 
     # Check for NaN values in the data
@@ -586,6 +586,25 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     print("reduced_x_train: " + str(reduced_x_train.shape))
     print("reduced_x_test: " + str(reduced_x_test.shape))
 
+    # Balance Test Dataset
+    # Balance the test set using RandomUnderSampler
+    rus = RandomUnderSampler(sampling_strategy='auto', random_state=42)
+    reduced_x_test, y_test = rus.fit_resample(reduced_x_test, y_test)
+
+    # Check Train Dataset Sample Distribution
+    class_0_sample_count = sum(y_train_combined == 0)
+    class_1_sample_count = sum(y_train_combined == 1)
+    print("Total Samples Train:", class_0_sample_count + class_1_sample_count)
+    print("Class 0:", class_0_sample_count)
+    print("Class 1:", class_1_sample_count)
+
+    # Check Test Dataset Sample Distribution
+    class_0_sample_count = sum(y_test == 0)
+    class_1_sample_count = sum(y_test == 1)
+    print("Total Samples Test:", class_0_sample_count + class_1_sample_count)
+    print("Class 0:", class_0_sample_count)
+    print("Class 1:", class_1_sample_count)
+
     # TODO Investing the balance of test dataset
     # Initialize results
 
@@ -594,7 +613,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         'train_samples_reduced_number': str(len(reduced_x_train)),
         'test_samples_number': str(len(x_test)),
         'test_samples_reduced_number': str(len(reduced_x_test)),
-        'test_size %': test_size * 100,
+        'test_size %': test_size * 50,  # TEMP FIX TO REPRESENT TEST DATASET CORRECTLY
         'ensemble learning groups': dataset_splitting,
         'dataset_balance_method': balance_method,
         'oversampling rate': oversampling_rate,
