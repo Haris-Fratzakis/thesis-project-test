@@ -67,7 +67,7 @@ def test_modular():
     # Test
     k_values_mfcc = [1, 2, 3, 4, 5]
     k_values_frame = [8, 9, 10, 11, 12]
-    k_values_segment = [5, 7, 10, 12, 15]
+    k_values_segment = [7, 10]
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
 
@@ -1023,6 +1023,8 @@ def test_display(results_df, models_used_str, parameters_df):
 
     # Print the entire DataFrame
     print("Metrics Used: [specificity, sensitivity, precision, accuracy, F1, AUC]")
+    # Get the current date
+    current_date = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
     for perf_res in models_used_str:
         if perf_res in results_df:
             # print(perf_res)
@@ -1052,9 +1054,6 @@ def test_display(results_df, models_used_str, parameters_df):
             # Check if the directory exists, if not, create it
             if not os.path.exists(metrics_folder):
                 os.makedirs(metrics_folder)
-
-            # Get the current date
-            current_date = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
             # Find the model with the best ROC curve for each model type used
             max_row = parameters_df.loc[parameters_df[perf_res + "_AUC"].idxmax()]
