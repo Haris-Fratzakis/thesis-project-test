@@ -1,4 +1,6 @@
 import os
+import random
+
 import pandas as pd
 import numpy as np
 from scipy.stats import mode
@@ -65,16 +67,16 @@ def test_modular():
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [1]
-    k_values_frame = [8]
-    k_values_segment = [5]
+    k_values_mfcc = [1, 2]
+    k_values_frame = [8, 9, 10, 11, 12]
+    k_values_segment = [5, 7, 10, 12, 15]
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM, TestUsageModel]
-    models_used = [1, 0, 0, 0, 0, 0, 0]
+    models_used = [0, 0, 0, 1, 0, 0, 0]
     test_size = [0.2]
     # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
@@ -82,15 +84,21 @@ def test_modular():
                                      k_values_segment=k_values_segment, models_used=models_used, test_size=test_size)
     # print(results_df)
 
-    # convert models_used values to their names
-    for idx in range(len(models_used)):
-        if models_used[idx] == 1:
-            models_used[idx] = models_name_conv(idx)
-
-    print("Models Used List: " + str(models_used))
+    models_used = models_used_name_converter(models_used)
     test_display(results_df, models_used, parameters_df)
 
     return results_df
+
+
+def models_used_name_converter(models_used):
+    models_used_temp = [0, 0, 0, 0, 0, 0, 0]
+    # convert models_used values to their names
+    for idx in range(len(models_used)):
+        if models_used[idx] == 1:
+            models_used_temp[idx] = models_name_switch_table(idx)
+
+    print("Models Used List: " + str(models_used_temp))
+    return models_used_temp
 
 
 # Making sure all features vectors are the same shape
@@ -318,6 +326,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
 
     total_iterations = len(k_values_mfcc) * len(k_values_frame) * len(k_values_segment) * len(test_size)
     current_iteration = 0
+    iteration_identifier = random.randint(0, 10000)
     # Loop over all combinations of hyperparameters
     for test_size_val in test_size:
         for k_mfcc in k_values_mfcc:
@@ -348,6 +357,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                     run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc, models_used=models_used, test_size=test_size_val)
                     results.append(run_res)
                     parameters.append(run_param)
+                    save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters), iteration_identifier)
                 else:
                     print(
                         "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
@@ -382,6 +392,8 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                                                                  models_used=models_used, test_size=test_size_val)
                             results.append(run_res)
                             parameters.append(run_param)
+                            save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters),
+                                               iteration_identifier)
                         else:
                             print(
                                 "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
@@ -417,6 +429,8 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                                                                n_segments=n_segments, models_used=models_used, test_size=test_size_val)
                                 results.append(run_res)
                                 parameters.append(run_param)
+                                save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters),
+                                                   iteration_identifier)
                             else:
                                 print(
                                     "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
@@ -1270,7 +1284,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
 
 # Convert models_used values to their names
-def models_name_conv(model):
+def models_name_switch_table(model):
     switcher = {
         0: "performance_metrics_lr",
         1: "performance_metrics_knn",
@@ -1286,6 +1300,62 @@ def models_name_conv(model):
     # in dictionary otherwise second argument will
     # be assigned as default value of passed argument
     return switcher.get(model, "Model Name Mismatch")
+
+
+# Function to store the results of each individual iteration
+def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_identifier):
+    for perf_res in models_used_str:
+        if perf_res in results_df:
+            # print(perf_res)
+            metrics = results_df[perf_res]
+            # print(metrics.apply(lambda x: [f"{num:.4f}" for num in x]))
+
+            # Convert the 'array_column' to a DataFrame and expand it into separate columns
+            array_df = pd.DataFrame(metrics.tolist(), index=results_df.index)
+
+            # Your specific list of names for the expanded columns
+            column_names = [perf_res + "_specificity", perf_res + "_sensitivity", perf_res + "_precision",
+                            perf_res + "_accuracy", perf_res + "_F1", perf_res + "_AUC"]
+
+            # Ensure the list length matches the number of columns to rename
+            if len(column_names) == array_df.shape[1]:
+                array_df.columns = column_names
+            else:
+                raise ValueError("The number of column names does not match the number of columns.")
+
+            # Join the new columns with the expanded_results_df DataFrame
+            parameters_df = pd.concat([parameters_df, array_df], axis=1)
+
+            # print(expanded_results_df)
+
+            metrics_folder = "./" + data_dir_choice + "/model_metrics"
+
+            # Check if the directory exists, if not, create it
+            if not os.path.exists(metrics_folder):
+                os.makedirs(metrics_folder)
+
+            # Find the model with the best ROC curve for each model type used
+            max_row = parameters_df.loc[parameters_df[perf_res + "_AUC"].idxmax()]
+            print(max_row)
+
+            # Create a blank row to separate the best results
+            first_blank_row = pd.DataFrame([{}], columns=parameters_df.columns)
+
+            # Create a second blank row to separate the best results
+            # Adding the max row label of each model used
+            second_blank_row = pd.DataFrame({parameters_df.columns[0]: ["Best Model for " + perf_res]}, index=[0])
+            second_blank_row = second_blank_row.reindex(columns=parameters_df.columns, fill_value='')
+
+            # Append the blank rows followed by the max row to the DataFrame
+            parameters_df = pd.concat([parameters_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])],
+                                      ignore_index=True)
+
+            # Save the expanded DataFrame to a CSV file
+            parameters_df.to_csv(
+                './' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + str(iteration_identifier) + '.csv',
+                index=False)
+
+            print("Iteration saved")
 
 
 # Function to display the results dataframe in a better way
