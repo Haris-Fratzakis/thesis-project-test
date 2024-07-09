@@ -18,7 +18,6 @@ import feature_extraction as feat_extr
 import training
 
 # Adding a directory choice to manage the name of each dataset
-# Dataset directory choice
 data_dir_choice = "smarty4covid"
 
 # IMPORTANT, if run on different PCs, this needs to be changed to point to the dataset directory
@@ -32,9 +31,14 @@ else:
     print("No Data Specified, thus defaulting to smarty4covid")
     data_dir = "E:/Storage/University/Thesis/smarty4covid/"
 
+# Setting a global random value to use in random states in the rest of the code
+# So multiple successive iterations of the program can work on the same data in the same way
+# in order for proper comparisons to be made
+random_state_global_value = random.randint(1, 1000)
 
-# New Test function to have modular feature extraction and training functions
-def test_modular():
+
+# Function to have modular feature extraction and training methods
+def modular_model_training():
     # Load the index csv
     if data_dir_choice == "smarty4covid":
         data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
@@ -67,18 +71,18 @@ def test_modular():
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [1, 2]
+    k_values_mfcc = [5]
     k_values_frame = [8, 9, 10, 11, 12]
     k_values_segment = [5, 7, 10, 12, 15]
+
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
-    # slots are [LR, KNN, SVM, MLP, CNN, LSTM, TestUsageModel]
-    models_used = [0, 0, 0, 1, 0, 0, 0]
+    # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
+    models_used = [1, 0, 0, 0, 0, 0]
     test_size = [0.2]
-    # TODO Fix SVM bug of never converging to a solution
     # This is the modular classifier training stage
     results_df, parameters_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                                      k_values_segment=k_values_segment, models_used=models_used, test_size=test_size)
@@ -91,7 +95,7 @@ def test_modular():
 
 
 def models_used_name_converter(models_used):
-    models_used_temp = [0, 0, 0, 0, 0, 0, 0]
+    models_used_temp = [0, 0, 0, 0, 0, 0]
     # convert models_used values to their names
     for idx in range(len(models_used)):
         if models_used[idx] == 1:
@@ -318,7 +322,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
     if models_used is None:
         models_used = [0, 0, 0, 0, 0, 0]
     if test_size is None:
-        k_values_segment = [0.3]
+        k_values_segment = [0.2]
 
     # Initialize list for storing results
     results = []
@@ -326,7 +330,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
 
     total_iterations = len(k_values_mfcc) * len(k_values_frame) * len(k_values_segment) * len(test_size)
     current_iteration = 0
-    iteration_identifier = random.randint(0, 10000)
+    iteration_identifier = random_state_global_value
     # Loop over all combinations of hyperparameters
     for test_size_val in test_size:
         for k_mfcc in k_values_mfcc:
@@ -458,8 +462,8 @@ def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
         case "Resampling":
             # Apply Random Over Sampling and Under Sampling
             # Define the resampling strategy
-            over = RandomOverSampler(sampling_strategy=oversampling_rate)  # Oversample the minority to have 70% of the majority class
-            under = RandomUnderSampler(sampling_strategy=1.0)  # Undersample the majority to have equal to the minority
+            over = RandomOverSampler(sampling_strategy=oversampling_rate, random_state=random_state_global_value)  # Oversample the minority to have 70% of the majority class
+            under = RandomUnderSampler(sampling_strategy=1.0, random_state=random_state_global_value)  # Undersample the majority to have equal to the minority
 
             # First apply oversampling
             features_oversampled, labels_oversampled = over.fit_resample(features, labels)
@@ -495,8 +499,7 @@ def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
             print("Class 1:", class_1_sample_count)
 
             # Apply SMOTE
-            smote = SMOTE()  # random_state case
-            # smote = SMOTE(random_state=42)
+            smote = SMOTE(random_state=random_state_global_value)
             features_res, labels_res = smote.fit_resample(features, labels)
 
             # Check class distribution after SMOTE
@@ -556,6 +559,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         n_samples = int(len(labels) * test_size // 2)
 
         # Randomly sample indices for the test set
+        # TODO Insert random state in the selection of test samples
         test_class_0_indices = np.random.choice(class_0_indices, size=n_samples, replace=False)
         test_class_1_indices = np.random.choice(class_1_indices, size=n_samples, replace=False)
 
@@ -579,8 +583,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         x_train = features[train_indices]
         y_train = labels[train_indices]
     else:
-        # x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, stratify=labels, random_state=42)  # random_state case
-        x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=test_size, stratify=labels)
+        x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=test_size, stratify=labels, random_state=random_state_global_value)
 
     print("x_train size: " + str(len(x_train)))
 
@@ -646,7 +649,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # ONLY NECESSARY WITH OLD METHOD
     if train_test_split_method == "old_method":
         # Balance the test set using RandomUnderSampler
-        rus = RandomUnderSampler(sampling_strategy='auto', random_state=42)
+        rus = RandomUnderSampler(sampling_strategy='auto', random_state=random_state_global_value)
         reduced_x_test, y_test = rus.fit_resample(reduced_x_test, y_test)
 
     # Check Train Dataset Sample Distribution
@@ -670,7 +673,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         'train_samples_reduced_number': str(len(reduced_x_train)),
         'test_samples_number': str(len(x_test)),
         'test_samples_reduced_number': str(len(reduced_x_test)),
-        'test_size %': test_size * 50,  # TEMP FIX TO REPRESENT TEST DATASET CORRECTLY
+        'test_size %': test_size * 100,
         'ensemble learning groups': dataset_splitting,
         'dataset_balance_method': balance_method,
         'oversampling rate': oversampling_rate,
@@ -1291,8 +1294,7 @@ def models_name_switch_table(model):
         2: "performance_metrics_svm",
         3: "performance_metrics_mlp",
         4: "performance_metrics_cnn",
-        5: "performance_metrics_lstm",
-        6: "performance_metrics_test"
+        5: "performance_metrics_lstm"
     }
 
     # get() method of dictionary data type returns
@@ -1418,4 +1420,4 @@ def test_display(results_df, models_used_str, parameters_df):
                                        index=False)
 
 
-results_df = test_modular()
+results_df = modular_model_training()

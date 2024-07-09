@@ -259,7 +259,6 @@ def cnn_training(x_train, y_train, cnn_hyper):
         return model
 
     # Wrap the Keras model with KerasClassifier
-    # TODO Fix the CNN Classifier
     cnn = KerasClassifier(build_fn=create_model, verbose=0)
 
     # Define the parameter grid
