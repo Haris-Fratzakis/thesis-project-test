@@ -71,7 +71,7 @@ def modular_model_training():
     # k_values_segment = [5, 7, 10, 12, 15]
 
     # Test
-    k_values_mfcc = [5]
+    k_values_mfcc = [1]
     k_values_frame = [8, 9, 10, 11, 12]
     k_values_segment = [5, 7, 10, 12, 15]
 
@@ -836,6 +836,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
             performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
 
+            # Access individual model predictions
+            for name, clf in ensemble.named_estimators_.items():
+                clf_preds = clf.predict(reduced_x_test)
+                print(f"Predictions from {name}: {clf_preds}")
+
             # Saving the best hyperparameters
             results_model['Hyper_LR__C'] = model_lr_hyper[0]["C"]
             results_model['performance_metrics_lr'] = performance_metrics_lr
@@ -887,6 +892,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             # Make predictions and evaluate the ensemble model
             y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
             performance_metrics_knn = training.evaluate_model(y_test, y_pred_proba)
+
+            # Access individual model predictions
+            for name, clf in ensemble.named_estimators_.items():
+                clf_preds = clf.predict(reduced_x_test)
+                print(f"Predictions from {name}: {clf_preds}")
 
             # TODO Find a better way to show hyperparameters for ensemble
             # Saving the best hyperparameters
@@ -943,6 +953,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
             performance_metrics_svm = training.evaluate_model(y_test, y_pred_proba)
 
+            # Access individual model predictions
+            for name, clf in ensemble.named_estimators_.items():
+                clf_preds = clf.predict(reduced_x_test)
+                print(f"Predictions from {name}: {clf_preds}")
+
             # Saving the best hyperparameters
             results_model['Hyper_SVM__C'] = model_svm_hyper[0]["C"]
             results_model['Hyper_SVM__gamma'] = model_svm_hyper[0]["gamma"]
@@ -997,6 +1012,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             # Evaluating
             y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
             performance_metrics_mlp = training.evaluate_model(y_test, y_pred_proba)
+
+            # Access individual model predictions
+            for name, clf in ensemble.named_estimators_.items():
+                clf_preds = clf.predict(reduced_x_test)
+                print(f"Predictions from {name}: {clf_preds}")
 
             # Saving the best hyperparameters
             results_model['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper[0]["hidden_layer_sizes"]
@@ -1060,6 +1080,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             # Evaluating
             y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
             performance_metrics_cnn = training.evaluate_model(y_test, y_pred_proba)
+
+            # Access individual model predictions
+            for name, clf in ensemble.named_estimators_.items():
+                clf_preds = clf.predict(reduced_x_test)
+                print(f"Predictions from {name}: {clf_preds}")
 
             # Saving the best hyperparameters
             results_model['Hyper_CNN__num_filters'] = model_cnn_hyper[0]["num_filters"]
