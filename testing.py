@@ -838,8 +838,20 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
-                clf_preds = clf.predict(reduced_x_test)
-                print(f"Predictions from {name}: {clf_preds}")
+                # clf_preds = clf.predict(reduced_x_test)
+                # print(f"Predictions from {name}: {clf_preds}")
+
+                # Evaluating
+                y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
+                performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+
+                print(f"Predictions from {name}:")
+                print("Specificity: " + performance_metrics_lr[0])
+                print("Sensitivity: " + performance_metrics_lr[1])
+                print("Precision: " + performance_metrics_lr[2])
+                print("Accuracy: " + performance_metrics_lr[3])
+                print("F1: " + performance_metrics_lr[4])
+                print("AUC: " + performance_metrics_lr[5])
 
             # Saving the best hyperparameters
             results_model['Hyper_LR__C'] = model_lr_hyper[0]["C"]
