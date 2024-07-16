@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import tensorflow as tf
 from keras.src.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
@@ -188,48 +189,15 @@ def mlp_training(x_train, y_train, mlp_hyper):
         'learning_rate_init': np.arange(mlp_hyper[2][0], mlp_hyper[2][1], mlp_hyper[2][2])  # 0.05, 0.1, ..., 1
     }
 
-    # Initialize model
-    # model_mlp = Sequential([
-    #     Dense(64, activation='relu', input_shape=(x_train.shape[1],)),
-    #     Dense(64, activation='relu'),
-    #     Dense(1, activation='sigmoid')  # Use 'softmax' and change units for multi-class
-    # ])
-
-    # Modify the MLPClassifier to catch and handle specific errors that occur due to non-finite weights:
-    # class RobustMLPClassifier(MLPClassifier):
-    #     def fit(self, x, y):
-    #         try:
-    #             super().fit(x, y)
-    #         except ValueError as e:
-    #             if 'non-finite' in str(e):
-    #                 # print(f"Skipping non-finite weights error: {e}")
-    #                 return None
-    #             else:
-    #                 raise
-
-    # Define a function to create the Keras model
-    def create_model(hidden_layer_sizes=(100,), learning_rate_init=0.001, alpha=0.0001, clip_norm=1.0):
-        model = Sequential()
-        model.add(Input(shape=(x_train.shape[1],)))
-        model.add(Dense(hidden_layer_sizes[0], activation='relu', kernel_regularizer=l2(alpha)))
-        for units in hidden_layer_sizes[1:]:
-            model.add(Dense(units, activation='relu', kernel_regularizer=l2(alpha)))
-        model.add(Dense(1, activation='sigmoid'))  # Use 'softmax' and change units for multi-class classification
-
-        optimizer = SGD(learning_rate=learning_rate_init, momentum=0.9, nesterov=True, clipnorm=clip_norm)
-        model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-
-        return model
-
-
     # Create the MLPClassifier
-    # mlp = RobustMLPClassifier(max_iter=1000, solver='sgd', early_stopping=True, n_iter_no_change=10)
-    mlp = KerasClassifier(model=create_model, clip_norm=1.0, hidden_layer_sizes=(10,), alpha=1e-07, learning_rate_init=0.05, epochs=100, batch_size=32, verbose=0)
+    mlp = MLPClassifier(solver='adam', early_stopping=True, n_iter_no_change=10, max_iter=200)
 
     print("MLP Classifier Start")
 
     # Create the GridSearchCV object
     grid_search = GridSearchCV(estimator=mlp, param_grid=param_grid, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)
+
+    # print(mlp.get_params().keys())
 
     # Fit the GridSearchCV instance to the training data
     grid_search.fit(x_train, y_train)

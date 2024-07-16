@@ -1,10 +1,11 @@
 import os
 import random
-
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.stats import mode
 from sklearn.impute import SimpleImputer
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import VotingClassifier
 from sklearn.preprocessing import StandardScaler, LabelEncoder
@@ -638,8 +639,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
     # Test Ensemble Learning with majority class split
-    # Method: 1 for normal learning, other odd values for ensemble learning. Most balanced ensemble value WAS 3 with the old method
-    dataset_splitting = 5
+    # Method: 1 for normal learning, other odd values for ensemble learning
+    # Most balanced ensemble value was 3 with the old method
+    # Most balanced ensemble value is 5 with the new method
+    dataset_splitting = 1
 
     # Method for splitting the dataset into train and test
     # old_method: The built-in method from sklearn (train_test_split), which leads to an imbalanced test dataset
@@ -842,16 +845,16 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 # print(f"Predictions from {name}: {clf_preds}")
 
                 # Evaluating
-                y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
-                performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+                y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                performance_metrics_lr_individual = training.evaluate_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
-                print("Specificity: " + performance_metrics_lr[0])
-                print("Sensitivity: " + performance_metrics_lr[1])
-                print("Precision: " + performance_metrics_lr[2])
-                print("Accuracy: " + performance_metrics_lr[3])
-                print("F1: " + performance_metrics_lr[4])
-                print("AUC: " + performance_metrics_lr[5])
+                print("Specificity: " + str(performance_metrics_lr_individual[0]))
+                print("Sensitivity: " + str(performance_metrics_lr_individual[1]))
+                print("Precision: " + str(performance_metrics_lr_individual[2]))
+                print("Accuracy: " + str(performance_metrics_lr_individual[3]))
+                print("F1: " + str(performance_metrics_lr_individual[4]))
+                print("AUC: " + str(performance_metrics_lr_individual[5]))
 
             # Saving the best hyperparameters
             results_model['Hyper_LR__C'] = model_lr_hyper[0]["C"]
@@ -907,8 +910,20 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
-                clf_preds = clf.predict(reduced_x_test)
-                print(f"Predictions from {name}: {clf_preds}")
+                # clf_preds = clf.predict(reduced_x_test)
+                # print(f"Predictions from {name}: {clf_preds}")
+
+                # Evaluating
+                y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
+                performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+
+                print(f"Predictions from {name}:")
+                print("Specificity: " + performance_metrics_lr[0])
+                print("Sensitivity: " + performance_metrics_lr[1])
+                print("Precision: " + performance_metrics_lr[2])
+                print("Accuracy: " + performance_metrics_lr[3])
+                print("F1: " + performance_metrics_lr[4])
+                print("AUC: " + performance_metrics_lr[5])
 
             # TODO Find a better way to show hyperparameters for ensemble
             # Saving the best hyperparameters
@@ -967,8 +982,20 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
-                clf_preds = clf.predict(reduced_x_test)
-                print(f"Predictions from {name}: {clf_preds}")
+                # clf_preds = clf.predict(reduced_x_test)
+                # print(f"Predictions from {name}: {clf_preds}")
+
+                # Evaluating
+                y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
+                performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+
+                print(f"Predictions from {name}:")
+                print("Specificity: " + performance_metrics_lr[0])
+                print("Sensitivity: " + performance_metrics_lr[1])
+                print("Precision: " + performance_metrics_lr[2])
+                print("Accuracy: " + performance_metrics_lr[3])
+                print("F1: " + performance_metrics_lr[4])
+                print("AUC: " + performance_metrics_lr[5])
 
             # Saving the best hyperparameters
             results_model['Hyper_SVM__C'] = model_svm_hyper[0]["C"]
@@ -1027,14 +1054,41 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
-                clf_preds = clf.predict(reduced_x_test)
-                print(f"Predictions from {name}: {clf_preds}")
+                # clf_preds = clf.predict(reduced_x_test)
+                # print(f"Predictions from {name}: {clf_preds}")
+
+                # Evaluating
+                y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
+                performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+
+                print(f"Predictions from {name}:")
+                print("Specificity: " + performance_metrics_lr[0])
+                print("Sensitivity: " + performance_metrics_lr[1])
+                print("Precision: " + performance_metrics_lr[2])
+                print("Accuracy: " + performance_metrics_lr[3])
+                print("F1: " + performance_metrics_lr[4])
+                print("AUC: " + performance_metrics_lr[5])
 
             # Saving the best hyperparameters
             results_model['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper[0]["hidden_layer_sizes"]
             results_model['Hyper_MLP__alpha'] = model_mlp_hyper[0]["alpha"]
             results_model['Hyper_MLP__learning_rate_init'] = model_mlp_hyper[0]["learning_rate_init"]
             results_model['performance_metrics_mlp'] = performance_metrics_mlp
+
+            # Monitor Convergence through the Loss Curve
+            # Evaluate the best model on the test set
+            y_pred = model_mlp.predict(x_test)
+            accuracy = accuracy_score(y_test, y_pred)
+            print(f'Accuracy: {accuracy}')
+
+            # Plot the loss curve to monitor convergence
+            plt.plot(model_mlp.loss_curve_)
+            plt.title('Loss Curve')
+            plt.xlabel('Epochs')
+            plt.ylabel('Loss')
+            plt.grid(True)
+            plt.show()
+
         else:
             # Training
             model_mlp, model_mlp_hyper = training.mlp_training(reduced_x_train, y_train_combined, mlp_hyper)
@@ -1095,8 +1149,21 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
-                clf_preds = clf.predict(reduced_x_test)
-                print(f"Predictions from {name}: {clf_preds}")
+                # clf_preds = clf.predict(reduced_x_test)
+                # print(f"Predictions from {name}: {clf_preds}")
+
+                # Evaluating
+                y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
+                performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+
+                print(f"Predictions from {name}:")
+                print("Specificity: " + performance_metrics_lr[0])
+                print("Sensitivity: " + performance_metrics_lr[1])
+                print("Precision: " + performance_metrics_lr[2])
+                print("Accuracy: " + performance_metrics_lr[3])
+                print("F1: " + performance_metrics_lr[4])
+                print("AUC: " + performance_metrics_lr[5])
+
 
             # Saving the best hyperparameters
             results_model['Hyper_CNN__num_filters'] = model_cnn_hyper[0]["num_filters"]
