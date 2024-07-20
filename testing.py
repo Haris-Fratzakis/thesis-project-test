@@ -35,7 +35,8 @@ else:
 # Setting a global random value to use in random states in the rest of the code
 # So multiple successive iterations of the program can work on the same data in the same way
 # in order for proper comparisons to be made
-random_state_global_value = random.randint(1, 1000)
+# random_state_global_value = random.randint(1, 1000)
+random_state_global_value = 227
 
 
 # Function to have modular feature extraction and training methods
@@ -73,8 +74,8 @@ def modular_model_training():
 
     # Test
     k_values_mfcc = [1]
-    k_values_frame = [8, 9, 10, 11, 12]
-    k_values_segment = [5, 7, 10, 12, 15]
+    k_values_frame = [8]
+    k_values_segment = [5]
 
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
@@ -82,7 +83,7 @@ def modular_model_training():
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [0, 0, 0, 1, 0, 0]
+    models_used = [1, 0, 0, 0, 0, 0]
     test_size = [0.2]
     # This is the modular classifier training stage
     results_df, parameters_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
@@ -472,22 +473,25 @@ def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
             # Apply Random Over Sampling and Under Sampling
             # Define the resampling strategy
             over = RandomOverSampler(sampling_strategy=oversampling_rate,
-                                     random_state=random_state_global_value)  # Oversample the minority to have 70% of the majority class
-            under = RandomUnderSampler(sampling_strategy=1.0,
-                                       random_state=random_state_global_value)  # Undersample the majority to have equal to the minority
+                                     random_state=random_state_global_value)  # Oversample the minority to have oversampling_rate * 100 % of the majority class
 
+            # TEST Check if oversampling is affecting the training
             # First apply oversampling
             features_oversampled, labels_oversampled = over.fit_resample(features, labels)
 
-            # print("After oversampling:")
+            print("After oversampling:")
             class_0_sample_count = sum(labels_oversampled == 0)
             class_1_sample_count = sum(labels_oversampled == 1)
             print("Total Samples:", class_0_sample_count + class_1_sample_count)
             print("Class 0:", class_0_sample_count)
             print("Class 1:", class_1_sample_count)
 
+            under = RandomUnderSampler(sampling_strategy=1.0,
+                                       random_state=random_state_global_value)  # Undersample the majority to have equal to the minority
+
             # Then apply undersampling
-            features_combined, labels_combined = under.fit_resample(features_oversampled, labels_oversampled)
+            # features_combined, labels_combined = under.fit_resample(features_oversampled, labels_oversampled)
+            features_combined, labels_combined = under.fit_resample(features, labels)
 
             # Check new class distribution
             print("After undersampling:")
@@ -529,6 +533,11 @@ def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
 
 # Function to split training datasets for ensemble training
 def training_ensemble_split(reduced_x_train, y_train_combined, dataset_splitting):
+    # Random_state case
+    random_state = random_state_global_value
+    if random_state is not None:
+        np.random.seed(random_state)
+
     # Separate the majority and minority classes
     x = np.array(reduced_x_train)  # Convert to numpy array if they are not already
     y = np.array(y_train_combined)  # Convert to numpy array if they are not already
@@ -624,6 +633,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         models_used = [0, 0, 0, 0, 0, 0]
         print("No model specified")
 
+    # Random_state case
+    random_state = random_state_global_value
+    if random_state is not None:
+        np.random.seed(random_state)
+
     shapes = [f.shape for f in features]
     unique_shapes = set(shapes)
     for shape in unique_shapes:
@@ -631,11 +645,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
     # Balance dataset
     # Methods: Resampling, SMOTE
-    balance_method = "SMOTE"
+    balance_method = "Resampling"
 
     # Test NaN conflict resolution
     # Methods: imputing, dropping
-    test_nan_conflict_solving_method = "imputing"
+    test_nan_conflict_solving_method = "dropping"
     # features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
     # Test Ensemble Learning with majority class split
@@ -651,80 +665,119 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
     # Split dataset
     if train_test_split_method == "new_method":
-        # random_state case
-        # if random_state is not None:
-        #     np.random.seed(random_state)
 
         # Separate the data by class
         class_0_indices = np.where(labels == 0)[0]
+        print("class_0_indices: ", len(class_0_indices))
         class_1_indices = np.where(labels == 1)[0]
+        print("class_1_indices: ", len(class_1_indices))
 
         # Calculate the number of samples to be included in the test set for each class
         n_samples = int(len(labels) * test_size // 2)
 
         # Randomly sample indices for the test set
-        # TODO Insert random state in the selection of test samples
         test_class_0_indices = np.random.choice(class_0_indices, size=n_samples, replace=False)
+        print("test_class_0_indices: ", len(test_class_0_indices))
         test_class_1_indices = np.random.choice(class_1_indices, size=n_samples, replace=False)
+        print("test_class_1_indices: ", len(test_class_1_indices))
 
         # Combine test indices
         test_indices = np.concatenate([test_class_0_indices, test_class_1_indices])
+        #print("test_indices: ", np.sort(test_indices))
+        print("test_indices len: ", len(test_indices))
 
         # Shuffle the test indices
-        np.random.shuffle(test_indices)
+        # np.random.shuffle(test_indices)
 
         # Create the test set
         x_test = features[test_indices]
         y_test = labels[test_indices]
+        # print("x_test[0]: ", x_test[0][:100])
+        # print("x_test[1]: ", x_test[1][:100])
+        # print("x_test[2]: ", x_test[2][:100])
 
         # Create the train set by excluding the test set indices
         train_indices = np.setdiff1d(np.arange(len(labels)), test_indices)
+        # print("train_indices: ", train_indices[:20])
+        print("train_indices len: ", len(train_indices))
 
         # Shuffle the train indices
-        np.random.shuffle(train_indices)
+        # np.random.shuffle(train_indices)
 
         # Index the training set
         x_train = features[train_indices]
         y_train = labels[train_indices]
     else:
-        # TEMP reduction of train set to debug dataset split
-        # Convert features and labels to pandas DataFrames/Series for easier manipulation
-        features_df = pd.DataFrame(features)
-        labels_series = pd.Series(labels)
+        # # TEMP reduction of train set to debug dataset split
+        # # Convert features and labels to pandas DataFrames/Series for easier manipulation
+        # features_df = pd.DataFrame(features)
+        # labels_series = pd.Series(labels)
+        #
+        # # Identify the majority and minority class
+        # majority_class = labels_series.value_counts().idxmax()
+        # minority_class = labels_series.value_counts().idxmin()
+        #
+        # # Number of samples to retain in the majority class
+        # num_samples_to_retain = labels_series.value_counts()[minority_class] * 2
+        #
+        # # Create DataFrames for each class
+        # majority_class_samples = features_df[labels_series == majority_class]
+        # minority_class_samples = features_df[labels_series == minority_class]
+        #
+        # # Randomly sample from the majority class
+        # majority_class_samples = majority_class_samples.sample(n=num_samples_to_retain,
+        #                                                        random_state=random_state_global_value)
+        #
+        # # Combine the undersampled majority class with the minority class
+        # undersampled_features = pd.concat([majority_class_samples, minority_class_samples])
+        # undersampled_labels = np.array(
+        #     [majority_class] * num_samples_to_retain + [minority_class] * len(minority_class_samples))
+        #
+        # # Convert back to numpy arrays if needed
+        # undersampled_features_np = undersampled_features.to_numpy()
 
-        # Identify the majority and minority class
-        majority_class = labels_series.value_counts().idxmax()
-        minority_class = labels_series.value_counts().idxmin()
-
-        # Number of samples to retain in the majority class
-        num_samples_to_retain = labels_series.value_counts()[minority_class] * 2
-
-        # Create DataFrames for each class
-        majority_class_samples = features_df[labels_series == majority_class]
-        minority_class_samples = features_df[labels_series == minority_class]
-
-        # Randomly sample from the majority class
-        majority_class_samples = majority_class_samples.sample(n=num_samples_to_retain,
-                                                               random_state=random_state_global_value)
-
-        # Combine the undersampled majority class with the minority class
-        undersampled_features = pd.concat([majority_class_samples, minority_class_samples])
-        undersampled_labels = np.array(
-            [majority_class] * num_samples_to_retain + [minority_class] * len(minority_class_samples))
-
-        # Convert back to numpy arrays if needed
-        undersampled_features_np = undersampled_features.to_numpy()
-
-        x_train, x_test, y_train, y_test = train_test_split(undersampled_features_np, undersampled_labels, test_size=test_size, stratify=undersampled_labels,
+        x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=test_size, stratify=labels,
                                                             random_state=random_state_global_value)
 
     print("x_train size: " + str(len(x_train)))
 
     # Check for NaN values in the data
-    if np.any(np.isnan(x_train)):
-        # print("NaN values found in x_train, applying imputation.")
-        imputer = SimpleImputer(strategy='mean')
-        x_train = imputer.fit_transform(x_train)
+    # # nan_counter = np.count_nonzero(~np.isnan(x_train))
+    # if np.any(np.isnan(x_train)):
+    #     # print("NaN values found in x_train, applying imputation.")
+    #     imputer = SimpleImputer(strategy='mean')
+    #     x_train = imputer.fit_transform(x_train)
+
+    # print("Before Train Dataset Dropping")
+    # for i in range(20):
+    #     print(f"xtrain[{i}]: ", x_train[i][:5])
+
+    if test_nan_conflict_solving_method == "imputing":
+        # Check for NaN values in the scaled data
+        if np.any(np.isnan(x_train)):
+            # print("NaN values found in x_train, applying imputation.")
+            imputer = SimpleImputer(strategy='mean')
+            x_test = imputer.fit_transform(x_train)
+        print("x_train size: " + str(len(x_train)))
+    elif test_nan_conflict_solving_method == "dropping":
+        # Drop samples with NaN values in test dataset
+        print("x_train size before dropping: " + str(len(x_train)))
+
+        # Create a mask for rows without NaN values
+        mask = ~np.isnan(x_train).any(axis=1)
+        if mask.any():
+            # print("NaN values found in x_test, dropping samples.")
+            pass
+
+        # Apply the mask to x_test and y_test
+        x_train = x_train[mask]
+        y_train = y_train[mask]
+
+        print("x_train size after dropping: " + str(len(x_train)))
+
+    # print("After Train Dataset Dropping")
+    # for i in range(20):
+    #     print(f"xtrain[{i}]: ", x_train[i][:5])
 
     if test_nan_conflict_solving_method == "imputing":
         # Check for NaN values in the scaled data
@@ -749,6 +802,15 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         print("x_test size after dropping: " + str(len(x_test)))
 
+    # print("x_test[0]: ", x_test[0][:100])
+    # print("x_test[1]: ", x_test[1][:100])
+    # print("x_test[2]: ", x_test[2][:100])
+
+    # Test for NaN values
+    mask_test = np.isnan(x_test).any(axis=1)
+    if mask_test.any():
+        print("NaN values found in x_test, dropping samples.")
+
     oversampling_rate = 0.6
     if dataset_splitting == 1:
         x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
@@ -756,10 +818,25 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         x_train_combined = x_train
         y_train_combined = y_train
 
+    # print("x_train[0]: ", x_train[0][:100])
+    # print("x_train[1]: ", x_train[1][:100])
+    # print("x_train[2]: ", x_train[2][:100])
+    # print("x_test[0]: ", x_test[0][:4])
+    # print("x_test[1]: ", x_test[1][:4])
+    # print("x_test[2]: ", x_test[2][:4])
+
     # Standardize features
     scaler = StandardScaler()
     x_train = scaler.fit_transform(x_train_combined)
     x_test = scaler.transform(x_test)
+
+    # Scaler Test
+    # print("x_train[0]: ", x_train[0][:100])
+    # print("x_train[1]: ", x_train[1][:100])
+    # print("x_train[2]: ", x_train[2][:100])
+    # print("x_test[0]: ", x_test[0][:4])
+    # print("x_test[1]: ", x_test[1][:4])
+    # print("x_test[2]: ", x_test[2][:4])
 
     # PCA to reduce the dimensionality of the features
 
@@ -769,14 +846,22 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # reduced_x_train = pca.fit_transform(x_train)
     # reduced_x_test = pca.transform(x_test)
 
+    # Test PCA
+    # print("Before PCA")
+    # print("original_x_train: " + str(x_train.shape))
+    # print("original_x_test: " + str(x_test.shape))
+    # print("x_train[0]: ", len(x_train[0]))
+
     # ALTERNATIVE: Specify the amount of variance to retain
     variance_ratio = 0.95  # Retain 95% of the variance
     pca = PCA(n_components=variance_ratio)
     reduced_x_train = pca.fit_transform(x_train)
     reduced_x_test = pca.transform(x_test)
 
-    print("reduced_x_train: " + str(reduced_x_train.shape))
-    print("reduced_x_test: " + str(reduced_x_test.shape))
+    # print("After PCA")
+    # print("reduced_x_train: " + str(reduced_x_train.shape))
+    # print("reduced_x_test: " + str(reduced_x_test.shape))
+    # print("reduced_x_train[0]: ", len(reduced_x_train[0]))
 
     # Balance Test Dataset
     # ONLY NECESSARY WITH OLD METHOD
@@ -842,7 +927,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             for i in range(dataset_splitting):
                 # Training
                 model_lr_temp, model_lr_hyper_temp = training.lr_training(x_train_dataset_split[i],
-                                                                          y_train_dataset_split[i], lr_hyper)
+                                                                          y_train_dataset_split[i], lr_hyper, random_state_global_value)
                 model_lr.append(model_lr_temp)
                 model_lr_hyper.append(model_lr_hyper_temp)
 
@@ -1103,19 +1188,19 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             results_model['Hyper_MLP__learning_rate_init'] = model_mlp_hyper[0]["learning_rate_init"]
             results_model['performance_metrics_mlp'] = performance_metrics_mlp
 
-            # Monitor Convergence through the Loss Curve
-            # Evaluate the best model on the test set
-            y_pred = model_mlp.predict(x_test)
-            accuracy = accuracy_score(y_test, y_pred)
-            print(f'Accuracy: {accuracy}')
-
-            # Plot the loss curve to monitor convergence
-            plt.plot(model_mlp.loss_curve_)
-            plt.title('Loss Curve')
-            plt.xlabel('Epochs')
-            plt.ylabel('Loss')
-            plt.grid(True)
-            plt.show()
+            # # Monitor Convergence through the Loss Curve
+            # # Evaluate the best model on the test set
+            # y_pred = model_mlp.predict(x_test)
+            # accuracy = accuracy_score(y_test, y_pred)
+            # print(f'Accuracy: {accuracy}')
+            #
+            # # Plot the loss curve to monitor convergence
+            # plt.plot(model_mlp.loss_curve_)
+            # plt.title('Loss Curve')
+            # plt.xlabel('Epochs')
+            # plt.ylabel('Loss')
+            # plt.grid(True)
+            # plt.show()
 
         else:
             # Training

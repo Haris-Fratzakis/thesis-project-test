@@ -91,9 +91,13 @@ def classifier(features, labels, n_mfcc, frame_size=0, n_segments=0):
 
 
 # Logistic Regression Model
-def lr_training(x_train, y_train, lr_hyper=None):
+def lr_training(x_train, y_train, lr_hyper=None, random_state=None):
     if lr_hyper is None:
         lr_hyper = [[-1]]
+
+    # Random_state case
+    if random_state is not None:
+        np.random.seed(random_state)
 
     # create the hyperparameter grid for each penalty (l1 and l2)
     param_grid_l1 = {
@@ -109,7 +113,7 @@ def lr_training(x_train, y_train, lr_hyper=None):
         param_grid_l2['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
 
     # Create a logistic regression model
-    logistic = LogisticRegression(solver='saga', max_iter=6000)
+    logistic = LogisticRegression(solver='saga', max_iter=6000, random_state=random_state)
 
     print("LR Classifier Start")
 
