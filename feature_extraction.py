@@ -84,6 +84,7 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
     file_path = os.path.join(data_dir, audio_path, audio_name)
     if os.path.exists(file_path):
         if os.path.getsize(file_path) <= 2048:
+            print("Filepath with tiny size: ", file_path)
             return False
 
         audio, sample_rate = librosa.load(file_path, res_type='kaiser_fast')
@@ -95,6 +96,7 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
 
         segment_length = len(audio) // n_segments
         segment_features = []
+        low_variance_segment_counter = 0
 
         for i in range(n_segments):
             start_index = i * segment_length
@@ -116,6 +118,10 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             if mfccs.shape[1] > 1:
                 # Check for variance and add noise if necessary to avoid unreliable kurtosis because of nearly identical data
                 if np.all(np.var(mfccs, axis=1) < 1e-10):
+                    if low_variance_segment_counter == 0:
+                        # print("Low variance sample: ", file_path)
+                        pass
+                    low_variance_segment_counter += 1
                     pass
                     # print("Adding noise")
                     # mfccs = add_noise(mfccs, 1e-10)
@@ -127,6 +133,13 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             # Aggregate features by computing the mean over time
             features = np.mean(np.vstack((mfccs, sc, sr, zcr, kurtosis_reshaped)), axis=1)
             segment_features.append(features)
+
+        # if low_variance_segment_counter > 10:
+        #     print("Many Low Variance Segments Total: ", low_variance_segment_counter)
+
+        if low_variance_segment_counter/n_segments > 0.6:
+            print("High Percentage of Low Variance Segments Sample: ", file_path)
+            print("High Percentage of Low Variance Segments: ", low_variance_segment_counter/n_segments)
 
         if segment_features:
             # Checking the most common shape for the feature vectors
@@ -156,5 +169,6 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             segment_features_flat = np.hstack(segment_features)
             return segment_features_flat
         else:
+            print("No segment features")
             return False
     return False

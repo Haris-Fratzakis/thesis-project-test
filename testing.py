@@ -255,6 +255,8 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
 
                         successful_indices = []
                         features_list = []
+                        healthy_results_counter = 0
+                        nan_results_counter = 0
                         # Check if the file doesn't exist
                         if not os.path.exists(feature_filename):
                             # Modified part to extract features and simultaneously filter labels
@@ -275,6 +277,16 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                                 feat = feat_extr.extract_features_with_segments(data_dir, audio_path, audio_name,
                                                                                 n_mfcc, frame_size, hop_length,
                                                                                 n_segments)
+                                if np.isnan(feat).any():
+                                    print("NaN Values Filepath: ", os.path.join(data_dir, audio_path, audio_name))
+                                    print("Features that include NaN Values: ", feat[:50])
+                                    nan_results_counter += 1
+                                elif healthy_results_counter < 5:
+                                    print("Healthy Result Filepath: ", os.path.join(data_dir, audio_path, audio_name))
+                                    if feat is not False:
+                                        print("Healthy Result: ", feat[:50])
+                                        healthy_results_counter += 1
+
                                 if feat is not False:
                                     features_list.append(feat)
                                     successful_indices.append(idx)
