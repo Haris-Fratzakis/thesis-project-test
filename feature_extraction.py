@@ -137,8 +137,8 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             low_variance_flag = False
             if mfccs.shape[1] > 1:
                 # Check for variance and add noise if necessary to avoid unreliable kurtosis because of nearly identical data
-                # if np.all(np.var(mfccs, axis=1) < 1e-10):   # WHY DOES THIS GIVE FALSE????
-                if not np.any(np.var(mfccs, axis=1) >= 1e-10):
+                if np.all(np.var(mfccs, axis=1) < 1e-10):   # WHY DOES THIS GIVE FALSE????
+                # if not np.any(np.var(mfccs, axis=1) >= 1e-10):
                     if low_variance_segment_counter == 0:
                         pass
                     # print("Low variance sample: ", file_path)
@@ -160,13 +160,13 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
                 # print("mfccs.shape[1]: ", mfccs.shape[1])
                 # print("mfccs: ", mfccs)
                 # if np.isnan(kurtosis_reshaped).any():
-                #     # print("NaN Values for Kurtosis for filepath: ", file_path)
-                #     # print("NaN Kurtosis: ", kurtosis)
-                #     # print("NaN Kurtosis_reshaped: ", kurtosis_reshaped)
-                #     # print("mfccs: ", mfccs)
-                #     # print("mfccs variance if statement: ", not np.any(np.var(mfccs, axis=1) >= 1e-10))
-                #     # print("mfccs variance: ", np.var(mfccs, axis=1))
-                #     # print("low_variance_flag: ", low_variance_flag)
+                #     print("NaN Values for Kurtosis for filepath: ", file_path)
+                #     print("NaN Kurtosis: ", kurtosis)
+                #     print("NaN Kurtosis_reshaped: ", kurtosis_reshaped)
+                #     print("mfccs: ", mfccs)
+                #     print("mfccs variance if statement: ", not np.any(np.var(mfccs, axis=1) >= 1e-10))
+                #     print("mfccs variance: ", np.var(mfccs, axis=1))
+                #     print("low_variance_flag: ", low_variance_flag)
                 #     pass
 
                 low_variance_flag = False
