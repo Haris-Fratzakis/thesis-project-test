@@ -74,8 +74,8 @@ def modular_model_training():
 
     # Test
     k_values_mfcc = [1]
-    k_values_frame = [8]
-    k_values_segment = [5]
+    k_values_frame = [8, 9, 10, 11, 12]
+    k_values_segment = [5, 7, 10, 12, 15]
 
     test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                    k_values_segment=k_values_segment)
@@ -129,6 +129,12 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
 
     # Initialize the LabelEncoder
     le = LabelEncoder()
+
+    if k_values_frame == [-1] or k_values_segment == [-1]:
+        total_iterations = 0
+    else:
+        total_iterations = len(k_values_mfcc) * len(k_values_frame) * len(k_values_segment)
+    current_iteration = 0
 
     # Loop over all combinations of hyperparameters
     for k_mfcc in k_values_mfcc:
@@ -237,6 +243,9 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                     for k_segment in k_values_segment:
                         n_segments = 10 * k_segment
 
+                        current_iteration += 1
+                        print("Feature Extraction Iteration " + str(current_iteration) + "/" + str(total_iterations))
+
                         # Feature Extraction Initialization Function with all five methods and all three hyperparameters
 
                         # Name of the directory and file where the features will be saved
@@ -277,15 +286,15 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                                 feat = feat_extr.extract_features_with_segments(data_dir, audio_path, audio_name,
                                                                                 n_mfcc, frame_size, hop_length,
                                                                                 n_segments)
-                                if np.isnan(feat).any():
-                                    print("NaN Values Filepath: ", os.path.join(data_dir, audio_path, audio_name))
-                                    print("Features that include NaN Values: ", feat[:50])
-                                    nan_results_counter += 1
-                                elif healthy_results_counter < 5:
-                                    print("Healthy Result Filepath: ", os.path.join(data_dir, audio_path, audio_name))
-                                    if feat is not False:
-                                        print("Healthy Result: ", feat[:50])
-                                        healthy_results_counter += 1
+                                # if np.isnan(feat).any():
+                                #     print("NaN Values Filepath: ", os.path.join(data_dir, audio_path, audio_name))
+                                #     print("Features that include NaN Values: ", feat[:50])
+                                #     nan_results_counter += 1
+                                # elif healthy_results_counter < 5:
+                                #     print("Healthy Result Filepath: ", os.path.join(data_dir, audio_path, audio_name))
+                                #     if feat is not False:
+                                #         print("Healthy Result: ", feat[:50])
+                                #         healthy_results_counter += 1
 
                                 if feat is not False:
                                     features_list.append(feat)
@@ -675,17 +684,36 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # new_method: My custom function to keep test dataset balanced between classes
     train_test_split_method = "new_method"
 
+    # Drop samples with NaN values in the dataset
+    print("Dataset before dropping: " + str(len(features)))
+
+    # Create a mask for rows without NaN values
+    mask = ~np.isnan(features).any(axis=1)
+    if mask.any():
+        # print("NaN values found in x_test, dropping samples.")
+        pass
+
+    # Apply the mask to x_test and y_test
+    features_cleaned = features[mask]
+    labels_cleaned = labels[mask]
+
+    print("Dataset after dropping: " + str(len(features_cleaned)))
+
+    # Standardize features  # TODO Test the Scaler output (by plotting)
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features_cleaned)
+
     # Split dataset
     if train_test_split_method == "new_method":
 
         # Separate the data by class
-        class_0_indices = np.where(labels == 0)[0]
+        class_0_indices = np.where(labels_cleaned == 0)[0]
         print("class_0_indices: ", len(class_0_indices))
-        class_1_indices = np.where(labels == 1)[0]
+        class_1_indices = np.where(labels_cleaned == 1)[0]
         print("class_1_indices: ", len(class_1_indices))
 
         # Calculate the number of samples to be included in the test set for each class
-        n_samples = int(len(labels) * test_size // 2)
+        n_samples = int(len(labels_cleaned) * test_size // 2)
 
         # Randomly sample indices for the test set
         test_class_0_indices = np.random.choice(class_0_indices, size=n_samples, replace=False)
@@ -698,18 +726,15 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         #print("test_indices: ", np.sort(test_indices))
         print("test_indices len: ", len(test_indices))
 
-        # Shuffle the test indices
-        # np.random.shuffle(test_indices)
-
         # Create the test set
-        x_test = features[test_indices]
-        y_test = labels[test_indices]
+        x_test = features_scaled[test_indices]
+        y_test = labels_cleaned[test_indices]
         # print("x_test[0]: ", x_test[0][:100])
         # print("x_test[1]: ", x_test[1][:100])
         # print("x_test[2]: ", x_test[2][:100])
 
         # Create the train set by excluding the test set indices
-        train_indices = np.setdiff1d(np.arange(len(labels)), test_indices)
+        train_indices = np.setdiff1d(np.arange(len(labels_cleaned)), test_indices)
         # print("train_indices: ", train_indices[:20])
         print("train_indices len: ", len(train_indices))
 
@@ -717,8 +742,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         # np.random.shuffle(train_indices)
 
         # Index the training set
-        x_train = features[train_indices]
-        y_train = labels[train_indices]
+        x_train = features_scaled[train_indices]
+        y_train = labels_cleaned[train_indices]
     else:
         # # TEMP reduction of train set to debug dataset split
         # # Convert features and labels to pandas DataFrames/Series for easier manipulation
@@ -748,10 +773,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         # # Convert back to numpy arrays if needed
         # undersampled_features_np = undersampled_features.to_numpy()
 
-        x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=test_size, stratify=labels,
+        x_train, x_test, y_train, y_test = train_test_split(features_scaled, labels_cleaned, test_size=test_size, stratify=labels_cleaned,
                                                             random_state=random_state_global_value)
 
     print("x_train size: " + str(len(x_train)))
+    print("x_test size: " + str(len(x_test)))
 
     # Check for NaN values in the data
     # # nan_counter = np.count_nonzero(~np.isnan(x_train))
@@ -764,88 +790,93 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # for i in range(20):
     #     print(f"xtrain[{i}]: ", x_train[i][:5])
 
-    if test_nan_conflict_solving_method == "imputing":
-        # Check for NaN values in the scaled data
-        if np.any(np.isnan(x_train)):
-            # print("NaN values found in x_train, applying imputation.")
-            imputer = SimpleImputer(strategy='mean')
-            x_test = imputer.fit_transform(x_train)
-        print("x_train size: " + str(len(x_train)))
-    elif test_nan_conflict_solving_method == "dropping":
-        # Drop samples with NaN values in test dataset
-        print("x_train size before dropping: " + str(len(x_train)))
-
-        # Create a mask for rows without NaN values
-        mask = ~np.isnan(x_train).any(axis=1)
-        if mask.any():
-            # print("NaN values found in x_test, dropping samples.")
-            pass
-
-        # Apply the mask to x_test and y_test
-        x_train = x_train[mask]
-        y_train = y_train[mask]
-
-        print("x_train size after dropping: " + str(len(x_train)))
-
-    # print("After Train Dataset Dropping")
-    # for i in range(20):
-    #     print(f"xtrain[{i}]: ", x_train[i][:5])
-
-    if test_nan_conflict_solving_method == "imputing":
-        # Check for NaN values in the scaled data
-        if np.any(np.isnan(x_test)):
-            # print("NaN values found in x_train, applying imputation.")
-            imputer = SimpleImputer(strategy='mean')
-            x_test = imputer.fit_transform(x_test)
-        print("x_test size: " + str(len(x_test)))
-    elif test_nan_conflict_solving_method == "dropping":
-        # Drop samples with NaN values in test dataset
-        print("x_test size before dropping: " + str(len(x_test)))
-
-        # Create a mask for rows without NaN values
-        mask = ~np.isnan(x_test).any(axis=1)
-        if mask.any():
-            # print("NaN values found in x_test, dropping samples.")
-            pass
-
-        # Apply the mask to x_test and y_test
-        x_test = x_test[mask]
-        y_test = y_test[mask]
-
-        print("x_test size after dropping: " + str(len(x_test)))
+    # if test_nan_conflict_solving_method == "imputing":
+    #     # Check for NaN values in the scaled data
+    #     if np.any(np.isnan(x_train)):
+    #         # print("NaN values found in x_train, applying imputation.")
+    #         imputer = SimpleImputer(strategy='mean')
+    #         x_test = imputer.fit_transform(x_train)
+    #     print("x_train size: " + str(len(x_train)))
+    # elif test_nan_conflict_solving_method == "dropping":
+    #     # Drop samples with NaN values in test dataset
+    #     print("x_train size before dropping: " + str(len(x_train)))
+    #
+    #     # Create a mask for rows without NaN values
+    #     mask = ~np.isnan(x_train).any(axis=1)
+    #     if mask.any():
+    #         # print("NaN values found in x_test, dropping samples.")
+    #         pass
+    #
+    #     # Apply the mask to x_test and y_test
+    #     x_train = x_train[mask]
+    #     y_train = y_train[mask]
+    #
+    #     print("x_train size after dropping: " + str(len(x_train)))
+    #
+    # # print("After Train Dataset Dropping")
+    # # for i in range(20):
+    # #     print(f"xtrain[{i}]: ", x_train[i][:5])
+    #
+    # if test_nan_conflict_solving_method == "imputing":
+    #     # Check for NaN values in the scaled data
+    #     if np.any(np.isnan(x_test)):
+    #         # print("NaN values found in x_train, applying imputation.")
+    #         imputer = SimpleImputer(strategy='mean')
+    #         x_test = imputer.fit_transform(x_test)
+    #     print("x_test size: " + str(len(x_test)))
+    # elif test_nan_conflict_solving_method == "dropping":
+    #     # Drop samples with NaN values in test dataset
+    #     print("x_test size before dropping: " + str(len(x_test)))
+    #
+    #     # Create a mask for rows without NaN values
+    #     mask = ~np.isnan(x_test).any(axis=1)
+    #     if mask.any():
+    #         # print("NaN values found in x_test, dropping samples.")
+    #         pass
+    #
+    #     # Apply the mask to x_test and y_test
+    #     x_test = x_test[mask]
+    #     y_test = y_test[mask]
+    #
+    #     print("x_test size after dropping: " + str(len(x_test)))
 
     # print("x_test[0]: ", x_test[0][:100])
     # print("x_test[1]: ", x_test[1][:100])
     # print("x_test[2]: ", x_test[2][:100])
 
-    # Test for NaN values
-    mask_test = np.isnan(x_test).any(axis=1)
-    if mask_test.any():
-        print("NaN values found in x_test, dropping samples.")
+    # # Test for NaN values
+    # mask_test = np.isnan(x_test).any(axis=1)
+    # if mask_test.any():
+    #     print("NaN values found in x_test, dropping samples.")
+
+    # OLD Code for dataset splitting
+    # oversampling_rate = 0.6
+    # if dataset_splitting == 1:
+    #     x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
+    # else:
+    #     x_train_combined = x_train
+    #     y_train_combined = y_train
 
     oversampling_rate = 0.6
     if dataset_splitting == 1:
-        x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
-    else:
-        x_train_combined = x_train
-        y_train_combined = y_train
+        x_train, y_train = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
 
-    # print("x_train[0]: ", x_train[0][:100])
-    # print("x_train[1]: ", x_train[1][:100])
-    # print("x_train[2]: ", x_train[2][:100])
+    # print("x_train[0]: ", x_train[0][:180])
+    # print("x_train[1]: ", x_train[1][:180])
+    # print("x_train[2]: ", x_train[2][:1800])
     # print("x_test[0]: ", x_test[0][:4])
     # print("x_test[1]: ", x_test[1][:4])
     # print("x_test[2]: ", x_test[2][:4])
 
-    # Standardize features
-    scaler = StandardScaler()
-    x_train = scaler.fit_transform(x_train_combined)
-    x_test = scaler.transform(x_test)
+    # # Standardize features
+    # scaler = StandardScaler()
+    # x_train = scaler.fit_transform(x_train_combined)
+    # x_test = scaler.transform(x_test)
 
     # Scaler Test
-    # print("x_train[0]: ", x_train[0][:100])
-    # print("x_train[1]: ", x_train[1][:100])
-    # print("x_train[2]: ", x_train[2][:100])
+    # print("x_train[0]: ", x_train[0][:4])
+    # print("x_train[1]: ", x_train[1][:4])
+    # print("x_train[2]: ", x_train[2][:4])
     # print("x_test[0]: ", x_test[0][:4])
     # print("x_test[1]: ", x_test[1][:4])
     # print("x_test[2]: ", x_test[2][:4])
@@ -860,8 +891,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
     # Test PCA
     # print("Before PCA")
-    # print("original_x_train: " + str(x_train.shape))
-    # print("original_x_test: " + str(x_test.shape))
+    print("original_x_train: " + str(x_train.shape))
+    print("original_x_test: " + str(x_test.shape))
     # print("x_train[0]: ", len(x_train[0]))
 
     # ALTERNATIVE: Specify the amount of variance to retain
@@ -871,8 +902,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     reduced_x_test = pca.transform(x_test)
 
     # print("After PCA")
-    # print("reduced_x_train: " + str(reduced_x_train.shape))
-    # print("reduced_x_test: " + str(reduced_x_test.shape))
+    print("reduced_x_train: " + str(reduced_x_train.shape))
+    print("reduced_x_test: " + str(reduced_x_test.shape))
     # print("reduced_x_train[0]: ", len(reduced_x_train[0]))
 
     # Balance Test Dataset
@@ -883,8 +914,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         reduced_x_test, y_test = rus.fit_resample(reduced_x_test, y_test)
 
     # Check Train Dataset Sample Distribution
-    class_0_sample_count = sum(y_train_combined == 0)
-    class_1_sample_count = sum(y_train_combined == 1)
+    class_0_sample_count = sum(y_train == 0)
+    class_1_sample_count = sum(y_train == 1)
     print("Total Samples Train:", class_0_sample_count + class_1_sample_count)
     print("Class 0:", class_0_sample_count)
     print("Class 1:", class_1_sample_count)
@@ -930,7 +961,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         lr_hyper = [[-7, 7, 15]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train_combined,
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train,
                                                                                    dataset_splitting)
 
             model_lr = []
@@ -986,7 +1017,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             results_model['performance_metrics_lr'] = performance_metrics_lr
         else:
             # Training
-            model_lr, model_lr_hyper = training.lr_training(reduced_x_train, y_train_combined, lr_hyper)
+            model_lr, model_lr_hyper = training.lr_training(reduced_x_train, y_train, lr_hyper)
 
             # Evaluating
             y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
@@ -1007,7 +1038,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         knn_hyper = [[10, 101, 10], [5, 31, 5]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train_combined,
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train,
                                                                                    dataset_splitting)
             model_knn = []
             model_knn_hyper = []
@@ -1057,7 +1088,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             results_model['performance_metrics_knn'] = performance_metrics_knn
         else:
             # Training
-            model_knn, model_knn_hyper = training.knn_training(reduced_x_train, y_train_combined, knn_hyper)
+            model_knn, model_knn_hyper = training.knn_training(reduced_x_train, y_train, knn_hyper)
 
             # Evaluating
             y_pred_proba = model_knn.predict_proba(reduced_x_test)[:, 1]
@@ -1079,7 +1110,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         svm_hyper = [[-7, 7, 15], [-7, 7, 15]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train_combined,
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train,
                                                                                    dataset_splitting)
             model_svm = []
             model_svm_hyper = []
@@ -1128,7 +1159,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             results_model['performance_metrics_svm'] = performance_metrics_svm
         else:
             # Training
-            model_svm, model_svm_hyper = training.svm_training(reduced_x_train, y_train_combined, svm_hyper)
+            model_svm, model_svm_hyper = training.svm_training(reduced_x_train, y_train, svm_hyper)
 
             # Evaluating
             y_pred_proba = model_svm.predict_proba(reduced_x_test)[:, 1]
@@ -1151,7 +1182,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         mlp_hyper = [[10, 101, 10], [-7, 8], [0.05, 1.05, 0.05]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train_combined,
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train,
                                                                                    dataset_splitting)
             model_mlp = []
             model_mlp_hyper = []
@@ -1216,7 +1247,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         else:
             # Training
-            model_mlp, model_mlp_hyper = training.mlp_training(reduced_x_train, y_train_combined, mlp_hyper)
+            model_mlp, model_mlp_hyper = training.mlp_training(reduced_x_train, y_train, mlp_hyper)
 
             # Evaluating
             y_pred_proba = model_mlp.predict_proba(reduced_x_test)[:, 1]
@@ -1246,7 +1277,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         cnn_hyper = [[3, 6], [2, 4], [0.1, 0.6, 0.2], [4, 6], [6, 9], [10, 260, 20]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train_combined,
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train,
                                                                                    dataset_splitting)
             model_cnn = []
             model_cnn_hyper = []
@@ -1301,7 +1332,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
             results_model['performance_metrics_cnn'] = performance_metrics_cnn
         else:
             # Training
-            model_cnn, model_cnn_hyper = training.cnn_training(reduced_x_train, y_train_combined, cnn_hyper)
+            model_cnn, model_cnn_hyper = training.cnn_training(reduced_x_train, y_train, cnn_hyper)
 
             # Evaluating
             y_pred_proba = model_cnn.predict_proba(reduced_x_test)[:, 1]

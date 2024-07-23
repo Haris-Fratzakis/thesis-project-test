@@ -110,36 +110,87 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             # frame_size = calculate_frame_size(segment_length)
 
             mfccs = librosa.feature.mfcc(y=segment, sr=sample_rate, n_mfcc=n_mfcc, n_fft=frame_size, hop_length=hop_length, n_mels=n_mels)
+            if np.isnan(mfccs).any():
+                print("NaN Values for MFCCs for filepath: ", file_path)
+                print("NaN MFCCs: ", mfccs)
+
             sc = librosa.feature.spectral_centroid(y=segment, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
+            if np.isnan(sc).any():
+                print("NaN Values for SC for filepath: ", file_path)
+                print("NaN SC: ", sc)
+
             sr = librosa.feature.spectral_rolloff(y=segment, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
+            if np.isnan(sr).any():
+                print("NaN Values for SR for filepath: ", file_path)
+                print("NaN SR: ", sr)
+
             zcr = librosa.feature.zero_crossing_rate(y=segment, frame_length=frame_size, hop_length=hop_length)
+            if np.isnan(zcr).any():
+                print("NaN Values for ZCR for filepath: ", file_path)
+                print("NaN ZCR: ", zcr)
+
+            # print("mfccs.shape[1]: ", mfccs.shape[1])
+            # print("k_segment: ", i)
+            # print("mfccs: ", mfccs)
 
             # Compute kurtosis on the MFCCs
+            low_variance_flag = False
             if mfccs.shape[1] > 1:
                 # Check for variance and add noise if necessary to avoid unreliable kurtosis because of nearly identical data
-                if np.all(np.var(mfccs, axis=1) < 1e-10):
+                # if np.all(np.var(mfccs, axis=1) < 1e-10):   # WHY DOES THIS GIVE FALSE????
+                if not np.any(np.var(mfccs, axis=1) >= 1e-10):
                     if low_variance_segment_counter == 0:
-                        # print("Low variance sample: ", file_path)
                         pass
+                    # print("Low variance sample: ", file_path)
+                    # print("mfccs.shape[1]: ", mfccs.shape[1])
+                    # print("k_segment: ", i)
+                    # print("mfccs: ", mfccs)
+
+                    low_variance_flag = True
                     low_variance_segment_counter += 1
                     pass
                     # print("Adding noise")
                     # mfccs = add_noise(mfccs, 1e-10)
+
+                # TODO TEMPORARY DISABLED KURTOSIS, NEED TO CHECK IF I SHOULD ENABLE IT AGAIN
+
                 kurtosis = scipy.stats.kurtosis(mfccs, axis=1, fisher=False)
                 kurtosis_reshaped = np.tile(kurtosis[:, np.newaxis], (1, mfccs.shape[1]))
+
+                # print("mfccs.shape[1]: ", mfccs.shape[1])
+                # print("mfccs: ", mfccs)
+                # if np.isnan(kurtosis_reshaped).any():
+                #     # print("NaN Values for Kurtosis for filepath: ", file_path)
+                #     # print("NaN Kurtosis: ", kurtosis)
+                #     # print("NaN Kurtosis_reshaped: ", kurtosis_reshaped)
+                #     # print("mfccs: ", mfccs)
+                #     # print("mfccs variance if statement: ", not np.any(np.var(mfccs, axis=1) >= 1e-10))
+                #     # print("mfccs variance: ", np.var(mfccs, axis=1))
+                #     # print("low_variance_flag: ", low_variance_flag)
+                #     pass
+
+                low_variance_flag = False
+
             else:
+                print("mfccs.shape[1] = 0? : ", mfccs.shape[1])
                 kurtosis_reshaped = np.zeros_like(mfccs)
+
+                # if np.isnan(kurtosis_reshaped).any():
+                #     print("NaN Values for Kurtosis for filepath: ", file_path)
+                #     print("NaN Kurtosis: ", kurtosis)
+                pass
 
             # Aggregate features by computing the mean over time
             features = np.mean(np.vstack((mfccs, sc, sr, zcr, kurtosis_reshaped)), axis=1)
+            # features = np.mean(np.vstack((mfccs, sc, sr, zcr)), axis=1) # TODO Check maybe if mean without 0s is necessary
             segment_features.append(features)
 
         # if low_variance_segment_counter > 10:
         #     print("Many Low Variance Segments Total: ", low_variance_segment_counter)
 
-        if low_variance_segment_counter/n_segments > 0.6:
-            print("High Percentage of Low Variance Segments Sample: ", file_path)
-            print("High Percentage of Low Variance Segments: ", low_variance_segment_counter/n_segments)
+        # if low_variance_segment_counter/n_segments > 0.6:
+            # print("High Percentage of Low Variance Segments Sample: ", file_path)
+            # print("High Percentage of Low Variance Segments: ", low_variance_segment_counter/n_segments)
 
         if segment_features:
             # Checking the most common shape for the feature vectors
