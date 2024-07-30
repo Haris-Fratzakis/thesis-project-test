@@ -1,8 +1,10 @@
 import os
 import random
+import matplotlib
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from scipy.stats import mode
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score
@@ -21,7 +23,8 @@ import training
 # Adding a directory choice to manage the name of each dataset
 data_dir_choice = "smarty4covid"
 
-# IMPORTANT, if run on different PCs, this needs to be changed to point to the dataset directory
+# IMPORTANT NOTICE
+# If run on different PCs, this needs to be changed to point to the dataset directory
 # Every dataset path query is formed in relation to this variable (data_dir)
 # Load the index csv
 if data_dir_choice == "smarty4covid":
@@ -39,6 +42,7 @@ else:
 random_state_global_value = 227
 
 
+# This function gets called first
 # Function to have modular feature extraction and training methods
 def modular_model_training():
     # Load the index csv
@@ -57,28 +61,29 @@ def modular_model_training():
         data = data[data.covid_status != 'resp_illness_not_identified']
     else:
         # No Data Specified, thus defaulting to smarty4covid
+        print("Incorrect dataset specified, defaulting to smarty4covid")
         data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
         data = pd.read_csv(data_index)
 
         # Exclude rows where 'covid_status' is 'no'
         data = data[data.covid_status != 'no']
 
-    # This is the modular feature extraction stage
+    # Modular feature extraction stage
 
     # Hyperparameter values based on:
     # Preliminary diagnosis of COVID-19 based on cough sounds using machine learning algorithms
     # https://ieeexplore.ieee.org/abstract/document/9432324
+    # Full list of parameters below
     # k_values_mfcc = [1, 2, 3, 4, 5]
     # k_values_frame = [8, 9, 10, 11, 12]
     # k_values_segment = [5, 7, 10, 12, 15]
 
-    # Test
     k_values_mfcc = [1]
     k_values_frame = [8, 9, 10, 11, 12]
     k_values_segment = [5, 7, 10, 12, 15]
 
-    test_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
-                   k_values_segment=k_values_segment)
+    modular_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
+                      k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
@@ -89,7 +94,6 @@ def modular_model_training():
     results_df, parameters_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                                                     k_values_segment=k_values_segment, models_used=models_used,
                                                     test_size=test_size)
-    # print(results_df)
 
     models_used = models_used_name_converter(models_used)
     test_display(results_df, models_used, parameters_df)
@@ -97,9 +101,10 @@ def modular_model_training():
     return results_df
 
 
+# Function that converts models_used values to their names
 def models_used_name_converter(models_used):
     models_used_temp = [0, 0, 0, 0, 0, 0]
-    # convert models_used values to their names
+
     for idx in range(len(models_used)):
         if models_used[idx] == 1:
             models_used_temp[idx] = models_name_switch_table(idx)
@@ -108,7 +113,7 @@ def models_used_name_converter(models_used):
     return models_used_temp
 
 
-# Making sure all features vectors are the same shape
+# Function that makes sure all features vectors are the same shape
 def pad_or_truncate(features, target_length):
     if len(features) > target_length:
         return features[:target_length]
@@ -118,8 +123,8 @@ def pad_or_truncate(features, target_length):
         return features
 
 
-# Temporary feature extraction function
-def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segment=None):
+# Function for feature extraction
+def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segment=None):
     if k_values_mfcc is None:
         k_values_mfcc = [1]
     if k_values_frame is None:
@@ -130,6 +135,7 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
     # Initialize the LabelEncoder
     le = LabelEncoder()
 
+    # Calculate the amount of iterations that feature extraction has to go through
     if k_values_frame == [-1] or k_values_segment == [-1]:
         total_iterations = 0
     else:
@@ -149,6 +155,7 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
             if not os.path.exists(features_folder):
                 os.makedirs(features_folder)
 
+            # Construction the filename
             feature_filename_target = "extracted_features_" + str(k_mfcc) + ".npy"
             label_filename_target = "extracted_labels_" + str(k_mfcc) + ".npy"
             feature_filename = os.path.join(features_folder, feature_filename_target)
@@ -311,7 +318,7 @@ def test_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segme
                                     print(f"Shape: {shape}, Count: {shapes.count(shape)}")
 
                                 lengths = [len(f) for f in features_list]
-                                print(lengths)
+                                # print(lengths)
 
                                 # if there are different size vectors
                                 most_common_length_result = mode(lengths)
@@ -648,6 +655,111 @@ def training_ensemble_split(reduced_x_train, y_train_combined, dataset_splitting
     # print(len(x3))
 
 
+# Custom Scaler Function
+def custom_scaler(features, scaler_type):
+    if scaler_type == "standard":
+        # Standard scaler
+        num_samples, num_features = features.shape
+        print("features.shape: ", features.shape)
+
+        # Make an Array with num_samples empty arrays
+        standardized_data = []
+        for _ in range(num_samples):
+            standardized_data.append([])
+
+        # features = [[sample 1 feature 1, sample 1 feature 2, etc], [sample 2 feature 1, sample 2 feature 2, etc], etc]
+        for i in range(num_features):
+            temp_features_total = []
+            temp__standardized_features_total = []
+            for j in range(num_samples):
+                temp_features_total.append(features[j][i])
+            # temp_features_total = [sample 1 feature 1, sample 2 feature 1, etc]
+            mean = np.mean(temp_features_total)
+            std_dev = np.std(temp_features_total)
+            for j in range(num_samples):
+                standardized_data[j].append((features[j][i] - mean) / std_dev)
+            # standardized_data = [[sample 1 standardized feature 1, sample 1 standardized feature 2, etc], [sample 2
+            # standardized feature 1, sample 2 standardized feature 2, etc], etc]
+
+            for j in range(num_samples):
+                temp__standardized_features_total.append(standardized_data[j][i])
+            # print("Standardized mean: ", np.mean(temp__standardized_features_total))
+            # print("Standardized std_dev: ", np.std(temp__standardized_features_total))
+
+        np_standardized_data = np.array(standardized_data)
+        print("standardized_data.shape: ", np_standardized_data.shape)
+        return np_standardized_data
+    elif scaler_type == "min_max":
+        # Min max scaler with range [0,1]
+        num_samples, num_features = features.shape
+        print("features.shape: ", features.shape)
+
+        # Make an Array with num_samples empty arrays
+        min_max_data = []
+        for _ in range(num_samples):
+            min_max_data.append([])
+
+        # features = [[sample 1 feature 1, sample 1 feature 2, etc], [sample 2 feature 1, sample 2 feature 2, etc], etc]
+        for i in range(num_features):
+            # print("features: ", features)
+            temp_features_total = []
+            temp_min_max_features_total = []
+            for j in range(num_samples):
+                temp_features_total.append(features[j][i])
+            # print("temp_features_total[:100]", temp_features_total[:100])
+            # temp_features_total = [sample 1 feature 1, sample 2 feature 1, etc]
+            feature_min = np.min(temp_features_total)
+            feature_max = np.max(temp_features_total)
+            # print("feature_min: ", feature_min)
+            # print("feature_max: ", feature_max)
+            for j in range(num_samples):
+                min_max_data[j].append((features[j][i] - feature_min) / (feature_max - feature_min))
+            # min_max_data = [[sample 1 min_max feature 1, sample 1 min_max feature 2, etc], [sample 2 min_max feature 1, sample 2 min_max feature 2, etc], etc]
+
+            for j in range(num_samples):
+                temp_min_max_features_total.append(min_max_data[j][i])
+            # temp_min_max_features_total = [sample 1 feature 1, sample 2 feature 1, etc]
+            # print("Min_max mean: ", np.mean(temp_min_max_features_total))
+            # print("Min_max std_dev: ", np.std(temp_min_max_features_total))
+
+        np_min_max_data = np.array(min_max_data)
+        print("min_max_data.shape: ", np_min_max_data.shape)
+        return np_min_max_data
+    else:
+        # Default Standard scaler
+        print("Wrong scaler_type, defaulting to Standard Scaler")
+        num_samples, num_features = features.shape
+        print("features.shape: ", features.shape)
+
+        # Make an Array with num_samples empty arrays
+        standardized_data = []
+        for _ in range(num_samples):
+            standardized_data.append([])
+
+        # features = [[sample 1 feature 1, sample 1 feature 2, etc], [sample 2 feature 1, sample 2 feature 2, etc], etc]
+        for i in range(num_features):
+            temp_features_total = []
+            temp__standardized_features_total = []
+            for j in range(num_samples):
+                temp_features_total.append(features[j][i])
+            # temp_features_total = [sample 1 feature 1, sample 2 feature 1, etc]
+            mean = np.mean(temp_features_total)
+            std_dev = np.std(temp_features_total)
+            for j in range(num_samples):
+                standardized_data[j].append((features[j][i] - mean) / std_dev)
+            # standardized_data = [[sample 1 standardized feature 1, sample 1 standardized feature 2, etc], [sample 2
+            # standardized feature 1, sample 2 standardized feature 2, etc], etc]
+
+            for j in range(num_samples):
+                temp__standardized_features_total.append(standardized_data[j][i])
+            # print("Standardized mean: ", np.mean(temp__standardized_features_total))
+            # print("Standardized std_dev: ", np.std(temp__standardized_features_total))
+
+        np_standardized_data = np.array(standardized_data)
+        print("standardized_data.shape: ", np_standardized_data.shape)
+        return np_standardized_data
+
+
 # Test training function
 def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, models_used=None, test_size=0.2):
     if models_used is None:
@@ -700,8 +812,64 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     print("Dataset after dropping: " + str(len(features_cleaned)))
 
     # Standardize features  # TODO Test the Scaler output (by plotting)
-    scaler = StandardScaler()
-    features_scaled = scaler.fit_transform(features_cleaned)
+    # Standard Scaler
+    # scaler = StandardScaler()
+    # features_scaled = scaler.fit_transform(features_cleaned)
+
+    # Custom Scaler
+    # scaler_type choice
+    # Methods: "standard", "min_max"
+    scaler_type = "standard"
+    features_scaled = custom_scaler(features_cleaned, scaler_type)
+
+    # print("features_cleaned: ", features_cleaned)
+    # print("features_scaled: ", features_scaled)
+
+    # # Test plot
+    # matplotlib.use('Agg')  # Use a non-interactive backend like 'Agg' for script execution
+    # features_original = []
+    # features_standardized = []
+    # # Create x-axis labels for all features across all samples
+    # num_samples, num_features = features_cleaned.shape
+    # print("num_samples", num_samples)
+    # print("num_features", num_features)
+    # for i in range(num_features):
+    #     temp_original = []
+    #     temp_standardized = []
+    #     for j in range(num_samples):
+    #         temp_original.append(features_cleaned[j][i])
+    #         temp_standardized.append(features_scaled[j][i])
+    #     features_original.append(temp_original)
+    #     features_standardized.append(temp_standardized)
+    #
+    # # Plotting
+    # fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+    #
+    # print("calc done")
+    #
+    # # Plot flattened original data
+    # axes[0].plot(features_original, marker='o')
+    # axes[0].set_title('Original Data')
+    # axes[0].set_xlabel('Features for All Samples')
+    # axes[0].set_ylabel('Value')
+    # # axes[0].legend()
+    #
+    # print("original data done")
+    #
+    # # Plot flattened standardized data
+    # axes[1].plot(features_standardized, marker='o')
+    # axes[1].set_title('Standardized Data')
+    # axes[1].set_xlabel('Features for All Samples')
+    # axes[1].set_ylabel('Value')
+    # # axes[1].legend()
+    #
+    # print("scaled data done")
+    #
+    # plt.tight_layout()
+    # # plt.show()
+    # plt.savefig('test.png')
+    #
+    # print("plot done")
 
     # Split dataset
     if train_test_split_method == "new_method":
@@ -723,7 +891,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
         # Combine test indices
         test_indices = np.concatenate([test_class_0_indices, test_class_1_indices])
-        #print("test_indices: ", np.sort(test_indices))
+        # print("test_indices: ", np.sort(test_indices))
         print("test_indices len: ", len(test_indices))
 
         # Create the test set
@@ -745,117 +913,11 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         x_train = features_scaled[train_indices]
         y_train = labels_cleaned[train_indices]
     else:
-        # # TEMP reduction of train set to debug dataset split
-        # # Convert features and labels to pandas DataFrames/Series for easier manipulation
-        # features_df = pd.DataFrame(features)
-        # labels_series = pd.Series(labels)
-        #
-        # # Identify the majority and minority class
-        # majority_class = labels_series.value_counts().idxmax()
-        # minority_class = labels_series.value_counts().idxmin()
-        #
-        # # Number of samples to retain in the majority class
-        # num_samples_to_retain = labels_series.value_counts()[minority_class] * 2
-        #
-        # # Create DataFrames for each class
-        # majority_class_samples = features_df[labels_series == majority_class]
-        # minority_class_samples = features_df[labels_series == minority_class]
-        #
-        # # Randomly sample from the majority class
-        # majority_class_samples = majority_class_samples.sample(n=num_samples_to_retain,
-        #                                                        random_state=random_state_global_value)
-        #
-        # # Combine the undersampled majority class with the minority class
-        # undersampled_features = pd.concat([majority_class_samples, minority_class_samples])
-        # undersampled_labels = np.array(
-        #     [majority_class] * num_samples_to_retain + [minority_class] * len(minority_class_samples))
-        #
-        # # Convert back to numpy arrays if needed
-        # undersampled_features_np = undersampled_features.to_numpy()
-
         x_train, x_test, y_train, y_test = train_test_split(features_scaled, labels_cleaned, test_size=test_size, stratify=labels_cleaned,
                                                             random_state=random_state_global_value)
 
     print("x_train size: " + str(len(x_train)))
     print("x_test size: " + str(len(x_test)))
-
-    # Check for NaN values in the data
-    # # nan_counter = np.count_nonzero(~np.isnan(x_train))
-    # if np.any(np.isnan(x_train)):
-    #     # print("NaN values found in x_train, applying imputation.")
-    #     imputer = SimpleImputer(strategy='mean')
-    #     x_train = imputer.fit_transform(x_train)
-
-    # print("Before Train Dataset Dropping")
-    # for i in range(20):
-    #     print(f"xtrain[{i}]: ", x_train[i][:5])
-
-    # if test_nan_conflict_solving_method == "imputing":
-    #     # Check for NaN values in the scaled data
-    #     if np.any(np.isnan(x_train)):
-    #         # print("NaN values found in x_train, applying imputation.")
-    #         imputer = SimpleImputer(strategy='mean')
-    #         x_test = imputer.fit_transform(x_train)
-    #     print("x_train size: " + str(len(x_train)))
-    # elif test_nan_conflict_solving_method == "dropping":
-    #     # Drop samples with NaN values in test dataset
-    #     print("x_train size before dropping: " + str(len(x_train)))
-    #
-    #     # Create a mask for rows without NaN values
-    #     mask = ~np.isnan(x_train).any(axis=1)
-    #     if mask.any():
-    #         # print("NaN values found in x_test, dropping samples.")
-    #         pass
-    #
-    #     # Apply the mask to x_test and y_test
-    #     x_train = x_train[mask]
-    #     y_train = y_train[mask]
-    #
-    #     print("x_train size after dropping: " + str(len(x_train)))
-    #
-    # # print("After Train Dataset Dropping")
-    # # for i in range(20):
-    # #     print(f"xtrain[{i}]: ", x_train[i][:5])
-    #
-    # if test_nan_conflict_solving_method == "imputing":
-    #     # Check for NaN values in the scaled data
-    #     if np.any(np.isnan(x_test)):
-    #         # print("NaN values found in x_train, applying imputation.")
-    #         imputer = SimpleImputer(strategy='mean')
-    #         x_test = imputer.fit_transform(x_test)
-    #     print("x_test size: " + str(len(x_test)))
-    # elif test_nan_conflict_solving_method == "dropping":
-    #     # Drop samples with NaN values in test dataset
-    #     print("x_test size before dropping: " + str(len(x_test)))
-    #
-    #     # Create a mask for rows without NaN values
-    #     mask = ~np.isnan(x_test).any(axis=1)
-    #     if mask.any():
-    #         # print("NaN values found in x_test, dropping samples.")
-    #         pass
-    #
-    #     # Apply the mask to x_test and y_test
-    #     x_test = x_test[mask]
-    #     y_test = y_test[mask]
-    #
-    #     print("x_test size after dropping: " + str(len(x_test)))
-
-    # print("x_test[0]: ", x_test[0][:100])
-    # print("x_test[1]: ", x_test[1][:100])
-    # print("x_test[2]: ", x_test[2][:100])
-
-    # # Test for NaN values
-    # mask_test = np.isnan(x_test).any(axis=1)
-    # if mask_test.any():
-    #     print("NaN values found in x_test, dropping samples.")
-
-    # OLD Code for dataset splitting
-    # oversampling_rate = 0.6
-    # if dataset_splitting == 1:
-    #     x_train_combined, y_train_combined = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
-    # else:
-    #     x_train_combined = x_train
-    #     y_train_combined = y_train
 
     oversampling_rate = 0.6
     if dataset_splitting == 1:
@@ -880,14 +942,6 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # print("x_test[0]: ", x_test[0][:4])
     # print("x_test[1]: ", x_test[1][:4])
     # print("x_test[2]: ", x_test[2][:4])
-
-    # PCA to reduce the dimensionality of the features
-
-    # Specify the number of principal components
-    # n_components = 100  # Number of principal components to keep
-    # pca = PCA(n_components=n_components)
-    # reduced_x_train = pca.fit_transform(x_train)
-    # reduced_x_test = pca.transform(x_test)
 
     # Test PCA
     # print("Before PCA")
@@ -951,6 +1005,10 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     print("frame_size: " + str(frame_size))
     print("segments: " + str(n_segments))
 
+    # Voting Classifier Voting Type
+    # # Methods: "soft", "hard"
+    voting_type = "hard"
+
     # Initialize all models
     # LR
     if models_used[0] == 1:
@@ -987,13 +1045,23 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Create a voting classifier
             ensemble = VotingClassifier(
-                estimators=estimators_temp, voting='soft')
+                estimators=estimators_temp, voting=voting_type)
 
             ensemble.fit(reduced_x_test, y_test)
 
             # Evaluating
-            y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
-            performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+            if voting_type == "soft":
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_lr = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+            elif voting_type == "hard":
+                y_pred = ensemble.predict(reduced_x_test)
+                performance_metrics_lr = training.evaluate_pred_model(y_test, y_pred)
+                performance_metrics_lr.append(0)
+            else:
+                # Default voting type = "soft"
+                print("Wrong Voting Type Detected, defaulting to soft")
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_lr = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
@@ -1001,8 +1069,17 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 # print(f"Predictions from {name}: {clf_preds}")
 
                 # Evaluating
-                y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
-                performance_metrics_lr_individual = training.evaluate_model(y_test, y_pred_proba)
+                if voting_type == "soft":
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_lr_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+                elif voting_type == "hard":
+                    y_pred = clf.predict(reduced_x_test)
+                    performance_metrics_lr_individual = training.evaluate_pred_model(y_test, y_pred)
+                else:
+                    # Default voting type = "soft"
+                    print("Wrong Voting Type Detected, defaulting to soft")
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_lr_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
                 print("Specificity: " + str(performance_metrics_lr_individual[0]))
@@ -1010,7 +1087,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 print("Precision: " + str(performance_metrics_lr_individual[2]))
                 print("Accuracy: " + str(performance_metrics_lr_individual[3]))
                 print("F1: " + str(performance_metrics_lr_individual[4]))
-                print("AUC: " + str(performance_metrics_lr_individual[5]))
+                if voting_type == "soft":
+                    print("AUC: " + str(performance_metrics_lr_individual[5]))
 
             # Saving the best hyperparameters
             results_model['Hyper_LR__C'] = model_lr_hyper[0]["C"]
@@ -1021,7 +1099,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Evaluating
             y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
-            performance_metrics_lr = training.evaluate_model(y_test, y_pred_proba)
+            performance_metrics_lr = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
             results_model['Hyper_LR__C'] = model_lr_hyper["C"]
@@ -1056,13 +1134,23 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Create a voting classifier
             ensemble = VotingClassifier(
-                estimators=estimators_temp, voting='soft')
+                estimators=estimators_temp, voting=voting_type)
 
             ensemble.fit(reduced_x_test, y_test)
 
             # Make predictions and evaluate the ensemble model
-            y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
-            performance_metrics_knn = training.evaluate_model(y_test, y_pred_proba)
+            if voting_type == "soft":
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_knn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+            elif voting_type == "hard":
+                y_pred = ensemble.predict(reduced_x_test)
+                performance_metrics_knn = training.evaluate_pred_model(y_test, y_pred)
+                performance_metrics_knn.append(0)
+            else:
+                # Default voting type = "soft"
+                print("Wrong Voting Type Detected, defaulting to soft")
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_knn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
@@ -1070,8 +1158,17 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 # print(f"Predictions from {name}: {clf_preds}")
 
                 # Evaluating
-                y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
-                performance_metrics_knn_individual = training.evaluate_model(y_test, y_pred_proba)
+                if voting_type == "soft":
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_knn_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+                elif voting_type == "hard":
+                    y_pred = clf.predict(reduced_x_test)
+                    performance_metrics_knn_individual = training.evaluate_pred_model(y_test, y_pred)
+                else:
+                    # Default voting type = "soft"
+                    print("Wrong Voting Type Detected, defaulting to soft")
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_knn_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
                 print("Specificity: " + str(performance_metrics_knn_individual[0]))
@@ -1079,7 +1176,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 print("Precision: " + str(performance_metrics_knn_individual[2]))
                 print("Accuracy: " + str(performance_metrics_knn_individual[3]))
                 print("F1: " + str(performance_metrics_knn_individual[4]))
-                print("AUC: " + str(performance_metrics_knn_individual[5]))
+                if voting_type == "soft":
+                    print("AUC: " + str(performance_metrics_knn_individual[5]))
 
             # TODO Find a better way to show hyperparameters for ensemble
             # Saving the best hyperparameters
@@ -1092,7 +1190,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Evaluating
             y_pred_proba = model_knn.predict_proba(reduced_x_test)[:, 1]
-            performance_metrics_knn = training.evaluate_model(y_test, y_pred_proba)
+            performance_metrics_knn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
             results_model['Hyper_kNN__n_neighbors'] = model_knn_hyper["n_neighbors"]
@@ -1128,13 +1226,23 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Create a voting classifier
             ensemble = VotingClassifier(
-                estimators=estimators_temp, voting='soft')
+                estimators=estimators_temp, voting=voting_type)
 
             ensemble.fit(reduced_x_test, y_test)
 
             # Evaluating
-            y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
-            performance_metrics_svm = training.evaluate_model(y_test, y_pred_proba)
+            if voting_type == "soft":
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_svm = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+            elif voting_type == "hard":
+                y_pred = ensemble.predict(reduced_x_test)
+                performance_metrics_svm = training.evaluate_pred_model(y_test, y_pred)
+                performance_metrics_svm.append(0)
+            else:
+                # Default voting type = "soft"
+                print("Wrong Voting Type Detected, defaulting to soft")
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_svm = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
@@ -1142,8 +1250,17 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 # print(f"Predictions from {name}: {clf_preds}")
 
                 # Evaluating
-                y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
-                performance_metrics_svm_individual = training.evaluate_model(y_test, y_pred_proba)
+                if voting_type == "soft":
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_svm_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+                elif voting_type == "hard":
+                    y_pred = clf.predict(reduced_x_test)
+                    performance_metrics_svm_individual = training.evaluate_pred_model(y_test, y_pred)
+                else:
+                    # Default voting type = "soft"
+                    print("Wrong Voting Type Detected, defaulting to soft")
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_svm_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
                 print("Specificity: " + str(performance_metrics_svm_individual[0]))
@@ -1151,7 +1268,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 print("Precision: " + str(performance_metrics_svm_individual[2]))
                 print("Accuracy: " + str(performance_metrics_svm_individual[3]))
                 print("F1: " + str(performance_metrics_svm_individual[4]))
-                print("AUC: " + str(performance_metrics_svm_individual[5]))
+                if voting_type == "soft":
+                    print("AUC: " + str(performance_metrics_svm_individual[5]))
 
             # Saving the best hyperparameters
             results_model['Hyper_SVM__C'] = model_svm_hyper[0]["C"]
@@ -1163,7 +1281,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Evaluating
             y_pred_proba = model_svm.predict_proba(reduced_x_test)[:, 1]
-            performance_metrics_svm = training.evaluate_model(y_test, y_pred_proba)
+            performance_metrics_svm = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
             results_model['Hyper_SVM__C'] = model_svm_hyper["C"]
@@ -1200,13 +1318,23 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Create a voting classifier
             ensemble = VotingClassifier(
-                estimators=estimators_temp, voting='soft')
+                estimators=estimators_temp, voting=voting_type)
 
             ensemble.fit(reduced_x_test, y_test)
 
             # Evaluating
-            y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
-            performance_metrics_mlp = training.evaluate_model(y_test, y_pred_proba)
+            if voting_type == "soft":
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_mlp = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+            elif voting_type == "hard":
+                y_pred = ensemble.predict(reduced_x_test)
+                performance_metrics_mlp = training.evaluate_pred_model(y_test, y_pred)
+                performance_metrics_mlp.append(0)
+            else:
+                # Default voting type = "soft"
+                print("Wrong Voting Type Detected, defaulting to soft")
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_mlp = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
@@ -1214,8 +1342,17 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 # print(f"Predictions from {name}: {clf_preds}")
 
                 # Evaluating
-                y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
-                performance_metrics_mlp_individual = training.evaluate_model(y_test, y_pred_proba)
+                if voting_type == "soft":
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_mlp_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+                elif voting_type == "hard":
+                    y_pred = clf.predict(reduced_x_test)
+                    performance_metrics_mlp_individual = training.evaluate_pred_model(y_test, y_pred)
+                else:
+                    # Default voting type = "soft"
+                    print("Wrong Voting Type Detected, defaulting to soft")
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_mlp_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
                 print("Specificity: " + str(performance_metrics_mlp_individual[0]))
@@ -1223,7 +1360,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 print("Precision: " + str(performance_metrics_mlp_individual[2]))
                 print("Accuracy: " + str(performance_metrics_mlp_individual[3]))
                 print("F1: " + str(performance_metrics_mlp_individual[4]))
-                print("AUC: " + str(performance_metrics_mlp_individual[5]))
+                if voting_type == "soft":
+                    print("AUC: " + str(performance_metrics_mlp_individual[5]))
 
             # Saving the best hyperparameters
             results_model['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper[0]["hidden_layer_sizes"]
@@ -1251,7 +1389,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Evaluating
             y_pred_proba = model_mlp.predict_proba(reduced_x_test)[:, 1]
-            performance_metrics_mlp = training.evaluate_model(y_test, y_pred_proba)
+            performance_metrics_mlp = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
             results_model['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper["hidden_layer_sizes"]
@@ -1295,13 +1433,23 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Create a voting classifier
             ensemble = VotingClassifier(
-                estimators=estimators_temp, voting='soft')
+                estimators=estimators_temp, voting=voting_type)
 
             ensemble.fit(reduced_x_test, y_test)
 
             # Evaluating
-            y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
-            performance_metrics_cnn = training.evaluate_model(y_test, y_pred_proba)
+            if voting_type == "soft":
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_cnn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+            elif voting_type == "hard":
+                y_pred = ensemble.predict(reduced_x_test)
+                performance_metrics_cnn = training.evaluate_pred_model(y_test, y_pred)
+                performance_metrics_cnn.append(0)
+            else:
+                # Default voting type = "soft"
+                print("Wrong Voting Type Detected, defaulting to soft")
+                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]  # Probability of the positive class
+                performance_metrics_cnn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
@@ -1309,8 +1457,17 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 # print(f"Predictions from {name}: {clf_preds}")
 
                 # Evaluating
-                y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
-                performance_metrics_cnn_individual = training.evaluate_model(y_test, y_pred_proba)
+                if voting_type == "soft":
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_cnn_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+                elif voting_type == "hard":
+                    y_pred = clf.predict(reduced_x_test)
+                    performance_metrics_cnn_individual = training.evaluate_pred_model(y_test, y_pred)
+                else:
+                    # Default voting type = "soft"
+                    print("Wrong Voting Type Detected, defaulting to soft")
+                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    performance_metrics_cnn_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
                 print("Specificity: " + str(performance_metrics_cnn_individual[0]))
@@ -1318,8 +1475,8 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                 print("Precision: " + str(performance_metrics_cnn_individual[2]))
                 print("Accuracy: " + str(performance_metrics_cnn_individual[3]))
                 print("F1: " + str(performance_metrics_cnn_individual[4]))
-                print("AUC: " + str(performance_metrics_cnn_individual[5]))
-
+                if voting_type == "soft":
+                    print("AUC: " + str(performance_metrics_cnn_individual[5]))
 
             # Saving the best hyperparameters
             results_model['Hyper_CNN__num_filters'] = model_cnn_hyper[0]["num_filters"]
@@ -1336,7 +1493,7 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
             # Evaluating
             y_pred_proba = model_cnn.predict_proba(reduced_x_test)[:, 1]
-            performance_metrics_cnn = training.evaluate_model(y_test, y_pred_proba)
+            performance_metrics_cnn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
             results_model['Hyper_CNN__num_filters'] = model_cnn_hyper["num_filters"]

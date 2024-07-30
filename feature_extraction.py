@@ -137,8 +137,8 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             low_variance_flag = False
             if mfccs.shape[1] > 1:
                 # Check for variance and add noise if necessary to avoid unreliable kurtosis because of nearly identical data
-                if np.all(np.var(mfccs, axis=1) < 1e-10):   # WHY DOES THIS GIVE FALSE????
-                # if not np.any(np.var(mfccs, axis=1) >= 1e-10):
+                # if np.all(np.var(mfccs, axis=1) < 1e-10):   # WHY DOES THIS GIVE FALSE????
+                if not np.any(np.var(mfccs, axis=1) >= 1e-10):
                     if low_variance_segment_counter == 0:
                         pass
                     # print("Low variance sample: ", file_path)
@@ -154,8 +154,8 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
 
                 # TODO TEMPORARY DISABLED KURTOSIS, NEED TO CHECK IF I SHOULD ENABLE IT AGAIN
 
-                kurtosis = scipy.stats.kurtosis(mfccs, axis=1, fisher=False)
-                kurtosis_reshaped = np.tile(kurtosis[:, np.newaxis], (1, mfccs.shape[1]))
+                # kurtosis = scipy.stats.kurtosis(mfccs, axis=1, fisher=False)
+                # kurtosis_reshaped = np.tile(kurtosis[:, np.newaxis], (1, mfccs.shape[1]))
 
                 # print("mfccs.shape[1]: ", mfccs.shape[1])
                 # print("mfccs: ", mfccs)
@@ -172,8 +172,8 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
                 low_variance_flag = False
 
             else:
-                print("mfccs.shape[1] = 0? : ", mfccs.shape[1])
-                kurtosis_reshaped = np.zeros_like(mfccs)
+                # print("mfccs.shape[1] = 0? : ", mfccs.shape[1])
+                # kurtosis_reshaped = np.zeros_like(mfccs)
 
                 # if np.isnan(kurtosis_reshaped).any():
                 #     print("NaN Values for Kurtosis for filepath: ", file_path)
@@ -181,8 +181,10 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
                 pass
 
             # Aggregate features by computing the mean over time
-            features = np.mean(np.vstack((mfccs, sc, sr, zcr, kurtosis_reshaped)), axis=1)
-            # features = np.mean(np.vstack((mfccs, sc, sr, zcr)), axis=1) # TODO Check maybe if mean without 0s is necessary
+            # features = np.mean(np.vstack((mfccs, sc, sr, zcr, kurtosis_reshaped)), axis=1)
+            features = np.mean(np.vstack((mfccs, sc, sr, zcr)), axis=1) # TODO Check maybe if mean without 0s is necessary
+            # features = np.vstack((mfccs, sc, sr, zcr, kurtosis_reshaped)).flatten()
+            features = np.vstack((mfccs, sc, sr, zcr)).flatten()
             segment_features.append(features)
 
         # if low_variance_segment_counter > 10:

@@ -52,27 +52,27 @@ def classifier(features, labels, n_mfcc, frame_size=0, n_segments=0):
     # Predict and evaluate all models
     # LR
     y_pred_proba = model_lr.predict_proba(x_test)[:, 1]
-    performance_metrics_lr = evaluate_model(y_test, y_pred_proba)
+    performance_metrics_lr = evaluate_pred_proba_model(y_test, y_pred_proba)
 
     # KNN
     y_pred_proba = model_knn.predict_proba(x_test)[:, 1]
-    performance_metrics_knn = evaluate_model(y_test, y_pred_proba)
+    performance_metrics_knn = evaluate_pred_proba_model(y_test, y_pred_proba)
 
     # SVM
     y_pred_proba = model_svm.predict_proba(x_test)[:, 1]
-    performance_metrics_svm = evaluate_model(y_test, y_pred_proba)
+    performance_metrics_svm = evaluate_pred_proba_model(y_test, y_pred_proba)
 
     # MLP
     y_pred_proba = model_mlp.predict(x_test).ravel()
-    performance_metrics_mlp = evaluate_model(y_test, y_pred_proba)
+    performance_metrics_mlp = evaluate_pred_proba_model(y_test, y_pred_proba)
 
     # CNN
     y_pred_proba = model_cnn.predict(x_test).ravel()
-    performance_metrics_cnn = evaluate_model(y_test, y_pred_proba)
+    performance_metrics_cnn = evaluate_pred_proba_model(y_test, y_pred_proba)
 
     # LSTM
     y_pred_proba = model_lstm.predict(x_test).ravel()
-    performance_metrics_lstm = evaluate_model(y_test, y_pred_proba)
+    performance_metrics_lstm = evaluate_pred_proba_model(y_test, y_pred_proba)
 
     # Save results
     results = {
@@ -305,7 +305,7 @@ def lstm_training(x_train, y_train):
 
 
 # Evaluate Performance of Classifiers
-def evaluate_model(y_true, y_pred_proba, threshold=0.5):
+def evaluate_pred_proba_model(y_true, y_pred_proba, threshold=0.5):
     # Binarize predictions based on threshold
     y_pred = [1 if prob > threshold else 0 for prob in y_pred_proba]
 
@@ -321,6 +321,19 @@ def evaluate_model(y_true, y_pred_proba, threshold=0.5):
     # roc_curve_plot(y_true, y_pred_proba)
 
     return [specificity, sensitivity, precision, accuracy, f1, auc]
+
+
+# Hard Voting Evaluate Function
+def evaluate_pred_model(y_true, y_pred):
+    # Calculating metrics
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    specificity = tn / (tn + fp)
+    sensitivity = tp / (tp + fn)
+    precision = precision_score(y_true, y_pred, zero_division=0)
+    accuracy = accuracy_score(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred)
+
+    return [specificity, sensitivity, precision, accuracy, f1]
 
 
 # Plot the ROC curve to investigate the metrics
