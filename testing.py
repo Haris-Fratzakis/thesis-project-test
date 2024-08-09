@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import mode
+from scipy.stats import mode, ttest_ind
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
@@ -78,7 +78,7 @@ def modular_model_training():
     # k_values_frame = [8, 9, 10, 11, 12]
     # k_values_segment = [5, 7, 10, 12, 15]
 
-    k_values_mfcc = [1]
+    k_values_mfcc = [5]
     k_values_frame = [8, 9, 10, 11, 12]
     k_values_segment = [5, 7, 10, 12, 15]
 
@@ -91,9 +91,9 @@ def modular_model_training():
     models_used = [1, 0, 0, 0, 0, 0]
     test_size = [0.2]
     # This is the modular classifier training stage
-    results_df, parameters_df = test_classifier_mod(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
-                                                    k_values_segment=k_values_segment, models_used=models_used,
-                                                    test_size=test_size)
+    results_df, parameters_df = modular_classifier(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
+                                                   k_values_segment=k_values_segment, models_used=models_used,
+                                                   test_size=test_size)
 
     models_used = models_used_name_converter(models_used)
     test_display(results_df, models_used, parameters_df)
@@ -155,7 +155,7 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
             if not os.path.exists(features_folder):
                 os.makedirs(features_folder)
 
-            # Construction the filename
+            # Create the filename
             feature_filename_target = "extracted_features_" + str(k_mfcc) + ".npy"
             label_filename_target = "extracted_labels_" + str(k_mfcc) + ".npy"
             feature_filename = os.path.join(features_folder, feature_filename_target)
@@ -163,9 +163,10 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
 
             successful_indices = []
             features_list = []
+
             # Check if the file doesn't exist
             if not os.path.exists(feature_filename):
-                # Modified part to extract features and simultaneously filter labels
+                # Extract features and simultaneously filter labels
                 for idx, row in data.iterrows():
                     if data_dir_choice == "smarty4covid":
                         path_part_1 = row.participantid
@@ -215,9 +216,10 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
 
                     successful_indices = []
                     features_list = []
+
                     # Check if the file doesn't exist
                     if not os.path.exists(feature_filename):
-                        # Modified part to extract features and simultaneously filter labels
+                        # Extract features and simultaneously filter labels
                         for idx, row in data.iterrows():
                             if data_dir_choice == "smarty4covid":
                                 path_part_1 = row.participantid
@@ -232,8 +234,7 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
                                 path_part_2 = row.submissionid
                                 audio_path = os.path.join(path_part_1, path_part_2)
                                 audio_name = "audio.cough.mp3"
-                            feat = feat_extr.extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size,
-                                                              hop_length)
+                            feat = feat_extr.extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length)
                             if feat is not False:
                                 features_list.append(feat)
                                 successful_indices.append(idx)
@@ -262,20 +263,17 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
                         if not os.path.exists(features_folder):
                             os.makedirs(features_folder)
 
-                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
-                            k_segment) + ".npy"
-                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
-                            k_segment) + ".npy"
+                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
+                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
                         feature_filename = os.path.join(features_folder, feature_filename_target)
                         label_filename = os.path.join(features_folder, label_filename_target)
 
                         successful_indices = []
                         features_list = []
-                        healthy_results_counter = 0
-                        nan_results_counter = 0
+
                         # Check if the file doesn't exist
                         if not os.path.exists(feature_filename):
-                            # Modified part to extract features and simultaneously filter labels
+                            # Extract features and simultaneously filter labels
                             for idx, row in data.iterrows():
                                 if data_dir_choice == "smarty4covid":
                                     path_part_1 = row.participantid
@@ -290,24 +288,12 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
                                     path_part_2 = row.submissionid
                                     audio_path = os.path.join(path_part_1, path_part_2)
                                     audio_name = "audio.cough.mp3"
-                                feat = feat_extr.extract_features_with_segments(data_dir, audio_path, audio_name,
-                                                                                n_mfcc, frame_size, hop_length,
-                                                                                n_segments)
-                                # if np.isnan(feat).any():
-                                #     print("NaN Values Filepath: ", os.path.join(data_dir, audio_path, audio_name))
-                                #     print("Features that include NaN Values: ", feat[:50])
-                                #     nan_results_counter += 1
-                                # elif healthy_results_counter < 5:
-                                #     print("Healthy Result Filepath: ", os.path.join(data_dir, audio_path, audio_name))
-                                #     if feat is not False:
-                                #         print("Healthy Result: ", feat[:50])
-                                #         healthy_results_counter += 1
-
+                                feat = feat_extr.extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length, n_segments)
                                 if feat is not False:
                                     features_list.append(feat)
                                     successful_indices.append(idx)
 
-                            # check if all features have the same shape
+                            # Check if all features have the same shape
                             shapes = [f.shape for f in features_list]
                             unique_shapes = set(shapes)
                             for shape in unique_shapes:
@@ -318,16 +304,15 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
                                     print(f"Shape: {shape}, Count: {shapes.count(shape)}")
 
                                 lengths = [len(f) for f in features_list]
-                                # print(lengths)
 
-                                # if there are different size vectors
+                                # Check if there are different size vectors
                                 most_common_length_result = mode(lengths)
                                 if isinstance(most_common_length_result.mode, np.ndarray):
                                     most_common_length = most_common_length_result.mode[0]
                                 else:
                                     most_common_length = most_common_length_result.mode
 
-                                # Shaping all features vectors to use the most common length
+                                # Shape all features vectors to use the most common length
                                 target_length = most_common_length
                                 features_list = [pad_or_truncate(f, target_length) for f in features_list]
                             features = np.array(features_list)
@@ -342,8 +327,8 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
                             np.save(label_filename, labels)
 
 
-# Temporary classifier function
-def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=None, models_used=None, test_size=None):
+# Modular classifier function
+def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None, models_used=None, test_size=None):
     if k_values_mfcc is None:
         k_values_mfcc = [1]
     if k_values_frame is None:
@@ -355,7 +340,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
     if test_size is None:
         k_values_segment = [0.2]
 
-    # Initialize list for storing results
+    # Initialize a list for storing the results
     results = []
     parameters = []
 
@@ -372,7 +357,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                 # Name of the directory and file where the features will be saved
                 features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
 
-                # Check if the directory exists, if not, report error, data mismatch
+                # Check if the directory exists, if not, report the error
                 if not os.path.exists(features_folder):
                     print("Error, data mismatch, features folder doesn't exist in test classifier")
 
@@ -389,26 +374,22 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                     # Train and evaluate the different classifiers outlined in training.py
                     current_iteration += 1
                     print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
-                    run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc, models_used=models_used,
-                                                         test_size=test_size_val)
+                    run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc, models_used=models_used, test_size=test_size_val)
                     results.append(run_res)
                     parameters.append(run_param)
-                    save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used),
-                                       pd.DataFrame(parameters), iteration_identifier)
+                    save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters), iteration_identifier)
                 else:
-                    print(
-                        "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
+                    print("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
             else:
                 for k_frame in k_values_frame:
                     frame_size = 2 ** k_frame
-                    hop_length = frame_size // 2  # 50% overlap
 
                     # Feature Extraction Initialization Function with all five methods and only two hyperparameters
                     if k_values_segment == [-1]:
                         # Name of the directory and file where the features will be saved
                         features_folder = data_dir_choice + "/extracted_features/feat_extr"
 
-                        # Check if the directory exists, if not, report error, data mismatch
+                        # Check if the directory exists, if not, report the error
                         if not os.path.exists(features_folder):
                             print("Error, data mismatch, features folder doesn't exist in test classifier")
 
@@ -425,26 +406,21 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                             # Train and evaluate the different classifiers outlined in training.py
                             current_iteration += 1
                             print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
-                            run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size,
-                                                                 models_used=models_used, test_size=test_size_val)
+                            run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size, models_used=models_used, test_size=test_size_val)
                             results.append(run_res)
                             parameters.append(run_param)
-                            save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used),
-                                               pd.DataFrame(parameters),
-                                               iteration_identifier)
+                            save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters), iteration_identifier)
                         else:
-                            print(
-                                "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
+                            print("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
                     else:
                         for k_segment in k_values_segment:
                             n_segments = 10 * k_segment
 
                             # Feature Extraction Initialization Function with all five methods and all three hyperparameters
-
                             # Name of the directory and file where the features will be saved
                             features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
 
-                            # Check if the directory exists, if not, report error, data mismatch
+                            # Check if the directory exists, if not, report the error
                             if not os.path.exists(features_folder):
                                 print("Error, data mismatch, features folder doesn't exist in test classifier")
 
@@ -464,18 +440,12 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
                                 # Train and evaluate the different classifiers outlined in training.py
                                 current_iteration += 1
                                 print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
-                                run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc,
-                                                                     frame_size=frame_size,
-                                                                     n_segments=n_segments, models_used=models_used,
-                                                                     test_size=test_size_val)
+                                run_res, run_param = test_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size, n_segments=n_segments, models_used=models_used, test_size=test_size_val)
                                 results.append(run_res)
                                 parameters.append(run_param)
-                                save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used),
-                                                   pd.DataFrame(parameters),
-                                                   iteration_identifier)
+                                save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters), iteration_identifier)
                             else:
-                                print(
-                                    "Error, data mismatch, features and labels data don't exist in features folder in test classifier")
+                                print("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
 
     # After the loop you can convert results to a DataFrame and analyze it
     results_df = pd.DataFrame(results)
@@ -483,7 +453,7 @@ def test_classifier_mod(k_values_mfcc, k_values_frame=None, k_values_segment=Non
     return results_df, parameters_df
 
 
-# Balancing Dataset Function
+# Function for balancing the dataset
 def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
     # Check class distribution
     # Class 0: Negative Covid
@@ -499,25 +469,25 @@ def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
     match balance_method:
         case "Resampling":
             # Apply Random Over Sampling and Under Sampling
-            # Define the resampling strategy
-            over = RandomOverSampler(sampling_strategy=oversampling_rate,
-                                     random_state=random_state_global_value)  # Oversample the minority to have oversampling_rate * 100 % of the majority class
 
-            # TEST Check if oversampling is affecting the training
-            # First apply oversampling
-            features_oversampled, labels_oversampled = over.fit_resample(features, labels)
+            # With ensemble training method, oversampling is not necessary
+            # # Define the resampling strategy
+            # over = RandomOverSampler(sampling_strategy=oversampling_rate, random_state=random_state_global_value)  # Oversample the minority to have oversampling_rate * 100 % of the majority class
+            #
+            # # Apply oversampling
+            # features_oversampled, labels_oversampled = over.fit_resample(features, labels)
+            #
+            # print("After oversampling:")
+            # class_0_sample_count = sum(labels_oversampled == 0)
+            # class_1_sample_count = sum(labels_oversampled == 1)
+            # print("Total Samples:", class_0_sample_count + class_1_sample_count)
+            # print("Class 0:", class_0_sample_count)
+            # print("Class 1:", class_1_sample_count)
 
-            print("After oversampling:")
-            class_0_sample_count = sum(labels_oversampled == 0)
-            class_1_sample_count = sum(labels_oversampled == 1)
-            print("Total Samples:", class_0_sample_count + class_1_sample_count)
-            print("Class 0:", class_0_sample_count)
-            print("Class 1:", class_1_sample_count)
+            # Apply undersampling
 
-            under = RandomUnderSampler(sampling_strategy=1.0,
-                                       random_state=random_state_global_value)  # Undersample the majority to have equal to the minority
+            under = RandomUnderSampler(sampling_strategy=1.0, random_state=random_state_global_value)  # Undersample the majority to have equal to the minority
 
-            # Then apply undersampling
             # features_combined, labels_combined = under.fit_resample(features_oversampled, labels_oversampled)
             features_combined, labels_combined = under.fit_resample(features, labels)
 
@@ -533,7 +503,7 @@ def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
             return features_combined, labels_combined
         case "SMOTE":
             # Check class distribution before SMOTE
-            # print("Before SMOTE:")
+            print("Before SMOTE:")
             class_0_sample_count = sum(labels == 0)
             class_1_sample_count = sum(labels == 1)
             total_original_samples = class_0_sample_count + class_1_sample_count
@@ -546,7 +516,7 @@ def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
             features_res, labels_res = smote.fit_resample(features, labels)
 
             # Check class distribution after SMOTE
-            # print("After SMOTE:")
+            print("After SMOTE:")
             class_0_sample_count = sum(labels_res == 0)
             class_1_sample_count = sum(labels_res == 1)
             total_final_samples = class_0_sample_count + class_1_sample_count
@@ -571,8 +541,8 @@ def training_ensemble_split(reduced_x_train, y_train_combined, dataset_splitting
     y = np.array(y_train_combined)  # Convert to numpy array if they are not already
 
     # Separate the majority and minority classes
-    minority_class_indices = np.where(y == 1)[0]  # Assuming minority class label is 1
-    majority_class_indices = np.where(y == 0)[0]  # Assuming majority class label is 0
+    minority_class_indices = np.where(y == 1)[0]
+    majority_class_indices = np.where(y == 0)[0]
 
     x_minority = x[minority_class_indices]
     y_minority = y[minority_class_indices]
@@ -580,9 +550,9 @@ def training_ensemble_split(reduced_x_train, y_train_combined, dataset_splitting
     x_majority = x[majority_class_indices]
     y_majority = y[majority_class_indices]
 
+    # TODO All shuffles are temporarily disabled to investigate the split
     # Shuffle the majority class
-    # x_majority, y_majority = shuffle(x_majority, y_majority, random_state=42) # random state case
-    x_majority, y_majority = shuffle(x_majority, y_majority)
+    # x_majority, y_majority = shuffle(x_majority, y_majority, random_state=random_state)
 
     # Split the majority class into three parts
     split_size = len(x_majority) // dataset_splitting
@@ -602,8 +572,7 @@ def training_ensemble_split(reduced_x_train, y_train_combined, dataset_splitting
         y_split_dataset.append(np.concatenate((y_minority, y_majority_split[i]), axis=0))
 
         # Shuffle the datasets to mix minority and majority instances
-        x_split_dataset[i], y_split_dataset[i] = shuffle(x_split_dataset[i], y_split_dataset[i],
-                                                         random_state=random_state_global_value)
+        # x_split_dataset[i], y_split_dataset[i] = shuffle(x_split_dataset[i], y_split_dataset[i], random_state=random_state)
 
         print(len(x_split_dataset[i]))
 
@@ -614,45 +583,12 @@ def training_ensemble_split(reduced_x_train, y_train_combined, dataset_splitting
     x_split_dataset.append(np.concatenate((x_minority, x_majority_split[dataset_splitting - 1]), axis=0))
     y_split_dataset.append(np.concatenate((y_minority, y_majority_split[dataset_splitting - 1]), axis=0))
 
-    x_split_dataset[dataset_splitting - 1], y_split_dataset[dataset_splitting - 1] = shuffle(
-        x_split_dataset[dataset_splitting - 1], y_split_dataset[dataset_splitting - 1],
-        random_state=random_state_global_value)
+    # Shuffle the last ensemble dataset
+    # x_split_dataset[dataset_splitting - 1], y_split_dataset[dataset_splitting - 1] = shuffle(x_split_dataset[dataset_splitting - 1], y_split_dataset[dataset_splitting - 1], random_state=random_state)
 
     print(len(x_split_dataset[dataset_splitting - 1]))
 
     return x_split_dataset, y_split_dataset
-
-    # x_majority_split_1 = x_majority[:split_size]
-    # y_majority_split_1 = y_majority[:split_size]
-    #
-    # x_majority_split_2 = x_majority[split_size:2 * split_size]
-    # y_majority_split_2 = y_majority[split_size:2 * split_size]
-    #
-    # x_majority_split_3 = x_majority[2 * split_size:]
-    # y_majority_split_3 = y_majority[2 * split_size:]
-
-    # Create three balanced datasets
-    # x1 = np.concatenate((x_minority, x_majority_split_1), axis=0)
-    # y1 = np.concatenate((y_minority, y_majority_split_1), axis=0)
-    #
-    # x2 = np.concatenate((x_minority, x_majority_split_2), axis=0)
-    # y2 = np.concatenate((y_minority, y_majority_split_2), axis=0)
-    #
-    # x3 = np.concatenate((x_minority, x_majority_split_3), axis=0)
-    # y3 = np.concatenate((y_minority, y_majority_split_3), axis=0)
-
-    # Shuffle the datasets to mix minority and majority instances
-    # random state cases
-    # x1, y1 = shuffle(x1, y1, random_state=42)
-    # x2, y2 = shuffle(x2, y2, random_state=42)
-    # x3, y3 = shuffle(x3, y3, random_state=42)
-    # x1, y1 = shuffle(x1, y1)
-    # x2, y2 = shuffle(x2, y2)
-    # x3, y3 = shuffle(x3, y3)
-    #
-    # print(len(x1))
-    # print(len(x2))
-    # print(len(x3))
 
 
 # Custom Scaler Function
@@ -798,6 +734,9 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
 
     # Drop samples with NaN values in the dataset
     print("Dataset before dropping: " + str(len(features)))
+    print("features[0]]: ", features[0][:10])
+    print("features[1]]: ", features[1][:10])
+    print("features[2]]: ", features[2][:10])
 
     # Create a mask for rows without NaN values
     mask = ~np.isnan(features).any(axis=1)
@@ -810,20 +749,24 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     labels_cleaned = labels[mask]
 
     print("Dataset after dropping: " + str(len(features_cleaned)))
+    print("features_cleaned[0]]: ", features_cleaned[0][:10])
+    print("features_cleaned[1]]: ", features_cleaned[1][:10])
+    print("features_cleaned[2]]: ", features_cleaned[2][:10])
 
-    # Standardize features  # TODO Test the Scaler output (by plotting)
-    # Standard Scaler
+    # Standardize features
     # scaler = StandardScaler()
     # features_scaled = scaler.fit_transform(features_cleaned)
 
     # Custom Scaler
     # scaler_type choice
     # Methods: "standard", "min_max"
-    scaler_type = "standard"
+    scaler_type = "min_max"
     features_scaled = custom_scaler(features_cleaned, scaler_type)
 
-    # print("features_cleaned: ", features_cleaned)
-    # print("features_scaled: ", features_scaled)
+    print("Scaling Dataset Complete")
+    print("features_scaled[0]]: ", features_scaled[0][:10])
+    print("features_scaled[1]]: ", features_scaled[1][:10])
+    print("features_scaled[2]]: ", features_scaled[2][:10])
 
     # # Test plot
     # matplotlib.use('Agg')  # Use a non-interactive backend like 'Agg' for script execution
@@ -916,19 +859,19 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
         x_train, x_test, y_train, y_test = train_test_split(features_scaled, labels_cleaned, test_size=test_size, stratify=labels_cleaned,
                                                             random_state=random_state_global_value)
 
+    print("After Split")
     print("x_train size: " + str(len(x_train)))
     print("x_test size: " + str(len(x_test)))
-
+    print("x_train[0]: ", x_train[0][:10])
+    print("x_train[1]: ", x_train[1][:10])
+    print("x_train[2]: ", x_train[2][:10])
+    print("x_test[0]: ", x_test[0][:10])
+    print("x_test[1]: ", x_test[1][:10])
+    print("x_test[2]: ", x_test[2][:10])
     oversampling_rate = 0.6
     if dataset_splitting == 1:
         x_train, y_train = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
-
-    # print("x_train[0]: ", x_train[0][:180])
-    # print("x_train[1]: ", x_train[1][:180])
-    # print("x_train[2]: ", x_train[2][:1800])
-    # print("x_test[0]: ", x_test[0][:4])
-    # print("x_test[1]: ", x_test[1][:4])
-    # print("x_test[2]: ", x_test[2][:4])
+        print("test")
 
     # # Standardize features
     # scaler = StandardScaler()
@@ -952,13 +895,19 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
     # ALTERNATIVE: Specify the amount of variance to retain
     variance_ratio = 0.95  # Retain 95% of the variance
     pca = PCA(n_components=variance_ratio)
-    reduced_x_train = pca.fit_transform(x_train)
+    reduced_x_train = pca.fit_transform(x_train)        # TODO CHECK PCA AGAIN CAUSE THE DATA IS NO LONGER SCALED
     reduced_x_test = pca.transform(x_test)
 
-    # print("After PCA")
+    print("After PCA")
     print("reduced_x_train: " + str(reduced_x_train.shape))
     print("reduced_x_test: " + str(reduced_x_test.shape))
     # print("reduced_x_train[0]: ", len(reduced_x_train[0]))
+    print("reduced_x_train[0]: ", reduced_x_train[0][:10])
+    print("reduced_x_train[1]: ", reduced_x_train[1][:10])
+    print("reduced_x_train[2]: ", reduced_x_train[2][:10])
+    print("reduced_x_test[0]: ", reduced_x_test[0][:10])
+    print("reduced_x_test[1]: ", reduced_x_test[1][:10])
+    print("reduced_x_test[2]: ", reduced_x_test[2][:10])
 
     # Balance Test Dataset
     # ONLY NECESSARY WITH OLD METHOD
@@ -1031,6 +980,22 @@ def test_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, m
                                                                           y_train_dataset_split[i], lr_hyper, random_state_global_value)
                 model_lr.append(model_lr_temp)
                 model_lr_hyper.append(model_lr_hyper_temp)
+
+                # Basic statistics Comparison
+                x_train_dataset_split_df = pd.DataFrame(x_train_dataset_split[i])
+                reduced_x_test_df = pd.DataFrame(reduced_x_test)
+                train_stats = x_train_dataset_split_df.describe()
+                test_stats = reduced_x_test_df.describe()
+
+                # Display the basic statistics
+                print("Training Data Statistics for ensemble model ", i, ":\n", train_stats)
+                print("Test Data Statistics:\n", test_stats)
+
+                # Perform t-tests for each feature
+                print("T_Tests")
+                for column in range(50):
+                    t_stat, p_value = ttest_ind(x_train_dataset_split_df[column], reduced_x_test_df[column])
+                    print(f'{column}: t-statistic = {t_stat}, p-value = {p_value}')
 
             # # Training
             # model_lr_1, model_lr_hyper_1 = training.lr_training(x1, y1, lr_hyper)
