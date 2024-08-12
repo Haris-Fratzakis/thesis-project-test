@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import mode, ttest_ind
-from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import VotingClassifier
@@ -23,6 +22,7 @@ import training
 # Adding a directory choice to manage the name of each dataset
 data_dir_choice = "smarty4covid"
 
+# TODO Make the dataset path local to the project
 # IMPORTANT NOTICE
 # If run on different PCs, this needs to be changed to point to the dataset directory
 # Every dataset path query is formed in relation to this variable (data_dir)
@@ -78,9 +78,9 @@ def modular_model_training():
     # k_values_frame = [8, 9, 10, 11, 12]
     # k_values_segment = [5, 7, 10, 12, 15]
 
-    k_values_mfcc = [5]
-    k_values_frame = [8, 9, 10, 11, 12]
-    k_values_segment = [5, 7, 10, 12, 15]
+    k_values_mfcc = [1]
+    k_values_frame = [8]
+    k_values_segment = [5]
 
     modular_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                       k_values_segment=k_values_segment)
@@ -146,7 +146,7 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
     for k_mfcc in k_values_mfcc:
         n_mfcc = 14 * k_mfcc
 
-        # Feature Extraction Initialization Function with only one method and only one hyperparameter
+        # Feature Extraction Initialization with one method and one hyperparameter
         if k_values_frame == [-1]:
             # Name of the directory and file where the features will be saved
             features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
@@ -200,7 +200,7 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
                 frame_size = 2 ** k_frame
                 hop_length = frame_size // 2  # 50% overlap
 
-                # Feature Extraction Initialization Function with four methods and only two hyperparameters
+                # Feature Extraction Initialization with four methods and two hyperparameters
                 if k_values_segment == [-1]:
                     # Name of the directory and file where the features will be saved
                     features_folder = data_dir_choice + "/extracted_features/feat_extr"
@@ -254,7 +254,7 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
                         current_iteration += 1
                         print("Feature Extraction Iteration " + str(current_iteration) + "/" + str(total_iterations))
 
-                        # Feature Extraction Initialization Function with all five methods and all three hyperparameters
+                        # Feature Extraction Initialization with four methods and three hyperparameters
 
                         # Name of the directory and file where the features will be saved
                         features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
@@ -352,7 +352,7 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
         for k_mfcc in k_values_mfcc:
             n_mfcc = 14 * k_mfcc
 
-            # Feature Extraction Initialization Function with only one method and only one hyperparameter
+            # Feature Extraction Initialization Loading with one method and one hyperparameter
             if k_values_frame == [-1]:
                 # Name of the directory and file where the features will be saved
                 features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
@@ -384,7 +384,7 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
                 for k_frame in k_values_frame:
                     frame_size = 2 ** k_frame
 
-                    # Feature Extraction Initialization Function with all five methods and only two hyperparameters
+                    # Feature Extraction Initialization Loading with four methods and two hyperparameters
                     if k_values_segment == [-1]:
                         # Name of the directory and file where the features will be saved
                         features_folder = data_dir_choice + "/extracted_features/feat_extr"
@@ -416,7 +416,7 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
                         for k_segment in k_values_segment:
                             n_segments = 10 * k_segment
 
-                            # Feature Extraction Initialization Function with all five methods and all three hyperparameters
+                            # Feature Extraction Initialization Loading with four methods and three hyperparameters
                             # Name of the directory and file where the features will be saved
                             features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
 
@@ -716,10 +716,6 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
     oversampling_rate = 0.6
     # features_combined, labels_combined = balance_dataset(features, labels, balance_method)
 
-    # Test NaN conflict resolution
-    # Methods: imputing, dropping
-    test_nan_conflict_solving_method = "dropping"
-
     # Apply ensemble learning with majority class split
     # Methods: 1 (for disabling ensemble learning),any odd number above that for ensemble learning
     # Most balanced ensemble value was 3 with the old split method
@@ -733,9 +729,9 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
 
     # Drop samples with NaN values in the dataset
     print("Dataset before dropping: " + str(len(features)))
-    print("features[0]]: ", features[0][:10])
-    print("features[1]]: ", features[1][:10])
-    print("features[2]]: ", features[2][:10])
+    # print("features[0]]: ", features[0][:10])
+    # print("features[1]]: ", features[1][:10])
+    # print("features[2]]: ", features[2][:10])
 
     # Create a mask for rows without NaN values
     mask = ~np.isnan(features).any(axis=1)

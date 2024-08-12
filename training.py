@@ -1,9 +1,6 @@
-import pandas as pd
 import numpy as np
-import tensorflow as tf
 from keras.src.callbacks import EarlyStopping
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
@@ -12,11 +9,8 @@ from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense, LSTM, Input
 from scikeras.wrappers import KerasClassifier
 from tensorflow.keras.optimizers import Adam, SGD
-from tensorflow.keras.regularizers import l2
-from tensorflow.keras.applications.resnet50 import ResNet50
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc
 import matplotlib.pyplot as plt
-
 
 # Classifiers
 #   Logistic Regression (LR)
@@ -30,67 +24,7 @@ import matplotlib.pyplot as plt
 # https://www.sciencedirect.com/science/article/pii/S0010482521003668
 
 
-# Test Function for Classifiers
-def classifier(features, labels, n_mfcc, frame_size=0, n_segments=0):
-    # Splitting dataset
-    # x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
-    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2)  # random_state case
-
-    # Standardize features
-    scaler = StandardScaler()
-    x_train = scaler.fit_transform(x_train)
-    x_test = scaler.transform(x_test)
-
-    # Initialize all models
-    model_lr = lr_training(x_train, y_train)
-    model_knn = knn_training(x_train, y_train)
-    model_svm = svm_training(x_train, y_train)
-    model_mlp = mlp_training(x_train, y_train)
-    model_cnn = cnn_training(x_train, y_train)
-    model_lstm = lstm_training(x_train, y_train)
-
-    # Predict and evaluate all models
-    # LR
-    y_pred_proba = model_lr.predict_proba(x_test)[:, 1]
-    performance_metrics_lr = evaluate_pred_proba_model(y_test, y_pred_proba)
-
-    # KNN
-    y_pred_proba = model_knn.predict_proba(x_test)[:, 1]
-    performance_metrics_knn = evaluate_pred_proba_model(y_test, y_pred_proba)
-
-    # SVM
-    y_pred_proba = model_svm.predict_proba(x_test)[:, 1]
-    performance_metrics_svm = evaluate_pred_proba_model(y_test, y_pred_proba)
-
-    # MLP
-    y_pred_proba = model_mlp.predict(x_test).ravel()
-    performance_metrics_mlp = evaluate_pred_proba_model(y_test, y_pred_proba)
-
-    # CNN
-    y_pred_proba = model_cnn.predict(x_test).ravel()
-    performance_metrics_cnn = evaluate_pred_proba_model(y_test, y_pred_proba)
-
-    # LSTM
-    y_pred_proba = model_lstm.predict(x_test).ravel()
-    performance_metrics_lstm = evaluate_pred_proba_model(y_test, y_pred_proba)
-
-    # Save results
-    results = {
-        'mfcc': n_mfcc,
-        'frame_size': frame_size,
-        'segments': n_segments,
-        'performance_metrics_lr': performance_metrics_lr,
-        'performance_metrics_knn': performance_metrics_knn,
-        'performance_metrics_svm': performance_metrics_svm,
-        'performance_metrics_mlp': performance_metrics_mlp,
-        'performance_metrics_cnn': performance_metrics_cnn,
-        'performance_metrics_lstm': performance_metrics_lstm
-    }
-
-    return results
-
-
-# Logistic Regression Model
+# Function for Logistic Regression Model
 def lr_training(x_train, y_train, lr_hyper=None, random_state=None):
     if lr_hyper is None:
         lr_hyper = [[-1]]
@@ -99,17 +33,12 @@ def lr_training(x_train, y_train, lr_hyper=None, random_state=None):
     if random_state is not None:
         np.random.seed(random_state)
 
-    # create the hyperparameter grid for each penalty (l1 and l2)
-    param_grid_l1 = {
-        'penalty': ['l1']
-    }
-
+    # create the hyperparameter grid for each penalty (l2 only)
     param_grid_l2 = {
         'penalty': ['l2']
     }
 
     if lr_hyper[0] != [-1]:
-        # param_grid_l1['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
         param_grid_l2['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
 
     # Create a logistic regression model
@@ -118,25 +47,17 @@ def lr_training(x_train, y_train, lr_hyper=None, random_state=None):
     print("LR Classifier Start")
 
     # Use GridSearchCV to search the hyperparameter grid with 5-fold cross validation
-    #clf_1 = GridSearchCV(logistic, param_grid_l1, cv=5, verbose=0)
     clf_2 = GridSearchCV(logistic, param_grid_l2, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)
 
     # Fit the model with the grid search
-    # clf_1.fit(x_train, y_train)
     clf_2.fit(x_train, y_train)
-
-    # The clf.best_estimator_ now holds the model with the best combination of hyperparameters
-    # if clf_1.best_score_ > clf_2.best_score_:
-    #     model_lr = clf_1.best_estimator_
-    # else:
-    #     model_lr = clf_2.best_estimator_
 
     model_lr = clf_2.best_estimator_
     model_lr_hyper = clf_2.best_params_
     return model_lr, model_lr_hyper
 
 
-# K-Nearest Neighbors Model
+# Function for K-Nearest Neighbors Model
 def knn_training(x_train, y_train, knn_hyper):
     param_grid = {
         'n_neighbors': list(range(knn_hyper[0][0], knn_hyper[0][1], knn_hyper[0][2])),
@@ -160,7 +81,7 @@ def knn_training(x_train, y_train, knn_hyper):
     return model_knn, model_knn_hyper
 
 
-# Support Vector Machines Model
+# Support Vector Machine Model
 def svm_training(x_train, y_train, svm_hyper):
     param_grid = {
         'C': np.logspace(svm_hyper[0][0], svm_hyper[0][1], svm_hyper[0][2]),
@@ -184,7 +105,7 @@ def svm_training(x_train, y_train, svm_hyper):
     return model_svm, model_svm_hyper
 
 
-# Multi-layer Perceptron Model
+# Function for Multi-layer Perceptron Model
 def mlp_training(x_train, y_train, mlp_hyper):
     # Define the parameter grid
     param_grid = {
@@ -201,8 +122,6 @@ def mlp_training(x_train, y_train, mlp_hyper):
     # Create the GridSearchCV object
     grid_search = GridSearchCV(estimator=mlp, param_grid=param_grid, cv=5, verbose=0, scoring='roc_auc', n_jobs=-1)
 
-    # print(mlp.get_params().keys())
-
     # Fit the GridSearchCV instance to the training data
     grid_search.fit(x_train, y_train)
 
@@ -213,7 +132,8 @@ def mlp_training(x_train, y_train, mlp_hyper):
     return model_mlp, model_mlp_hyper
 
 
-# Convolutional Neural Network Model
+# Function for Convolutional Neural Network Model
+# NOT CURRENTLY BEING USED
 def cnn_training(x_train, y_train, cnn_hyper):
     # Define the model creation function
     def create_model(num_filters=24, kernel_size=2, dropout_rate=0.1, dense_size=16):
@@ -261,7 +181,8 @@ def cnn_training(x_train, y_train, cnn_hyper):
     return model_cnn, model_cnn_hyper
 
 
-# Long Short-Term Memory Model
+# Function for Long Short-Term Memory Model
+# NOT CURRENTLY BEING USED
 def lstm_training(x_train, y_train):
     # Define a function to create the model, required for KerasClassifier
     def create_model(dropout_rate, dense_size, lstm_units, learning_rate):
@@ -304,28 +225,28 @@ def lstm_training(x_train, y_train):
     return model_lstm, model_lstm_hyper
 
 
-# Evaluate Performance of Classifiers
+# Function to evaluate the performance of the classifiers using probabilities
 def evaluate_pred_proba_model(y_true, y_pred_proba, threshold=0.5):
     # Binarize predictions based on threshold
     y_pred = [1 if prob > threshold else 0 for prob in y_pred_proba]
 
-    # Calculating metrics
+    # Calculate metrics
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
     specificity = tn / (tn + fp)
     sensitivity = tp / (tp + fn)
     precision = precision_score(y_true, y_pred, zero_division=0)
     accuracy = accuracy_score(y_true, y_pred)
     f1 = f1_score(y_true, y_pred)
-    auc = roc_auc_score(y_true, y_pred_proba)  # AUC requires probability scores of the positive class
+    auc = roc_auc_score(y_true, y_pred_proba)
 
     # roc_curve_plot(y_true, y_pred_proba)
 
     return [specificity, sensitivity, precision, accuracy, f1, auc]
 
 
-# Hard Voting Evaluate Function
+# Function to evaluate the performance of the classifiers for Ensemble Learning with Hard Voting
 def evaluate_pred_model(y_true, y_pred):
-    # Calculating metrics
+    # Calculate metrics
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
     specificity = tn / (tn + fp)
     sensitivity = tp / (tp + fn)
@@ -336,7 +257,7 @@ def evaluate_pred_model(y_true, y_pred):
     return [specificity, sensitivity, precision, accuracy, f1]
 
 
-# Plot the ROC curve to investigate the metrics
+# Function to plot the ROC curve
 def roc_curve_plot(y_true, y_pred_proba):
     fpr, tpr, thresholds = roc_curve(y_true, y_pred_proba)
     roc_auc = auc(fpr, tpr)

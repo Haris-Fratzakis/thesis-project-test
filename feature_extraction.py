@@ -1,9 +1,7 @@
 import os
 import librosa
 import numpy as np
-import scipy.stats
 from scipy.stats import mode
-
 
 # Feature Extraction Methods Used:
 #   Mel Frequency Cepstral Coefficients(MFCCs)
@@ -15,7 +13,7 @@ from scipy.stats import mode
 # Feature Extraction Methods based on Preliminary diagnosis of COVID-19 based on cough sounds using machine learning algorithms
 # https://ieeexplore.ieee.org/abstract/document/9432324
 
-# Feature extraction function with only one method and only one hyperparameter
+# Feature Extraction Function with one method and one hyperparameter
 def extract_features_simple(data_dir, audio_path, audio_name, n_mfcc):
     file_path = os.path.join(data_dir, audio_path, audio_name)
     # Check if the directory exists, if not, create it
@@ -31,7 +29,7 @@ def extract_features_simple(data_dir, audio_path, audio_name, n_mfcc):
     return False
 
 
-# Feature extraction function with four methods and only two hyperparameters
+# Feature Extraction Function with four methods and two hyperparameters
 def extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length):
     file_path = os.path.join(data_dir, audio_path, audio_name)
     # Check if the directory exists, if not, create it
@@ -45,31 +43,31 @@ def extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_l
         sr = librosa.feature.spectral_rolloff(y=audio, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
         zcr = librosa.feature.zero_crossing_rate(y=audio, frame_length=frame_size, hop_length=hop_length)
 
-        # Attempt to aggregate these features
+        # Aggregate these features
         features = np.mean(np.vstack((mfccs, sc, sr, zcr)), axis=1)
         return features
     return False
 
 
-# Dynamic Calculation for n_mels
+# Function that dynamically calculates n_mels
 def calculate_n_mels(segment_length, sample_rate, max_mels=40):
     # Ensure the number of Mel bands does not exceed half the segment length
     max_possible_mels = segment_length // 2
     return min(max_mels, max_possible_mels)
 
 
-# Dynamic Calculation for frame_size
+# Function that dynamically calculates frame_size
 # def calculate_frame_size(segment_length, max_frame_size=1024):
 #    return min(max_frame_size, 2**int(np.floor(np.log2(segment_length))))
 
 
-# Adding noise if necessary to avoid nearly identical segments for kurtosis
+# Function that adds noise if necessary to avoid nearly identical segments for kurtosis
 def add_noise(data, noise_level=1e-5):
     noise = np.random.normal(0, noise_level, data.shape)
     return data + noise
 
 
-# Making sure all features vectors are the same shape
+# Function that makes sure all features vectors are the same shape
 def pad_or_truncate(features, target_length):
     if len(features) > target_length:
         return features[:target_length]
@@ -79,7 +77,7 @@ def pad_or_truncate(features, target_length):
         return features
 
 
-# Feature extraction function with all five methods and all three hyperparameters
+# Feature extraction function with four methods and three hyperparameters
 def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop_length, frame_size, n_segments):
     file_path = os.path.join(data_dir, audio_path, audio_name)
     if os.path.exists(file_path):
@@ -129,15 +127,9 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
                 print("NaN Values for ZCR for filepath: ", file_path)
                 print("NaN ZCR: ", zcr)
 
-            # print("mfccs.shape[1]: ", mfccs.shape[1])
-            # print("k_segment: ", i)
-            # print("mfccs: ", mfccs)
-
             # Compute kurtosis on the MFCCs
-            low_variance_flag = False
             if mfccs.shape[1] > 1:
                 # Check for variance and add noise if necessary to avoid unreliable kurtosis because of nearly identical data
-                # if np.all(np.var(mfccs, axis=1) < 1e-10):   # WHY DOES THIS GIVE FALSE????
                 if not np.any(np.var(mfccs, axis=1) >= 1e-10):
                     if low_variance_segment_counter == 0:
                         pass
@@ -146,61 +138,36 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
                     # print("k_segment: ", i)
                     # print("mfccs: ", mfccs)
 
-                    low_variance_flag = True
                     low_variance_segment_counter += 1
                     pass
                     # print("Adding noise")
                     # mfccs = add_noise(mfccs, 1e-10)
 
-                # TODO TEMPORARY DISABLED KURTOSIS, NEED TO CHECK IF I SHOULD ENABLE IT AGAIN
-
                 # kurtosis = scipy.stats.kurtosis(mfccs, axis=1, fisher=False)
                 # kurtosis_reshaped = np.tile(kurtosis[:, np.newaxis], (1, mfccs.shape[1]))
-
-                # print("mfccs.shape[1]: ", mfccs.shape[1])
-                # print("mfccs: ", mfccs)
-                # if np.isnan(kurtosis_reshaped).any():
-                #     print("NaN Values for Kurtosis for filepath: ", file_path)
-                #     print("NaN Kurtosis: ", kurtosis)
-                #     print("NaN Kurtosis_reshaped: ", kurtosis_reshaped)
-                #     print("mfccs: ", mfccs)
-                #     print("mfccs variance if statement: ", not np.any(np.var(mfccs, axis=1) >= 1e-10))
-                #     print("mfccs variance: ", np.var(mfccs, axis=1))
-                #     print("low_variance_flag: ", low_variance_flag)
-                #     pass
-
-                low_variance_flag = False
 
             else:
                 # print("mfccs.shape[1] = 0? : ", mfccs.shape[1])
                 # kurtosis_reshaped = np.zeros_like(mfccs)
-
-                # if np.isnan(kurtosis_reshaped).any():
-                #     print("NaN Values for Kurtosis for filepath: ", file_path)
-                #     print("NaN Kurtosis: ", kurtosis)
                 pass
 
-            # Aggregate features by computing the mean over time
+            # Aggregate features
+            # Using Mean
             # features = np.mean(np.vstack((mfccs, sc, sr, zcr, kurtosis_reshaped)), axis=1)
-            features = np.mean(np.vstack((mfccs, sc, sr, zcr)), axis=1) # TODO Check maybe if mean without 0s is necessary
+            # features = np.mean(np.vstack((mfccs, sc, sr, zcr)), axis=1)
+
+            # Without using Mean
             # features = np.vstack((mfccs, sc, sr, zcr, kurtosis_reshaped)).flatten()
             features = np.vstack((mfccs, sc, sr, zcr)).flatten()
             segment_features.append(features)
 
-        # if low_variance_segment_counter > 10:
-        #     print("Many Low Variance Segments Total: ", low_variance_segment_counter)
-
-        # if low_variance_segment_counter/n_segments > 0.6:
-            # print("High Percentage of Low Variance Segments Sample: ", file_path)
-            # print("High Percentage of Low Variance Segments: ", low_variance_segment_counter/n_segments)
-
         if segment_features:
-            # Checking the most common shape for the feature vectors
+            # Check the most common shape for the feature vectors
             lengths = [len(f) for f in segment_features]
             # print(lengths)
             # most_common_length = mode(lengths).mode[0]
 
-            # if there are different size vectors
+            # If there are different size vectors shape them all to use the most common length
             most_common_length_result = mode(lengths)
             if isinstance(most_common_length_result.mode, np.ndarray):
                 most_common_length = most_common_length_result.mode[0]
@@ -215,7 +182,7 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             else:
                 most_common_length = most_common_length_result.mode
 
-            # Shaping all features vectors to use the most common length
+            # Shape all features vectors to use the most common length
             target_length = most_common_length
             segment_features = [pad_or_truncate(f, target_length) for f in segment_features]
 
