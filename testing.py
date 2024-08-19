@@ -20,7 +20,7 @@ import feature_extraction as feat_extr
 import training
 
 # Adding a directory choice to manage the name of each dataset
-data_dir_choice = "smarty4covid"
+data_dir_choice = "coswara"
 
 # TODO Make the dataset path local to the project
 # IMPORTANT NOTICE
@@ -78,9 +78,9 @@ def modular_model_training():
     # k_values_frame = [8, 9, 10, 11, 12]
     # k_values_segment = [5, 7, 10, 12, 15]
 
-    k_values_mfcc = [1]
-    k_values_frame = [8]
-    k_values_segment = [5]
+    k_values_mfcc = [1, 2, 3, 4, 5]
+    k_values_frame = [8, 9, 10, 11, 12]
+    k_values_segment = [5, 7, 10, 12, 15]
 
     modular_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                       k_values_segment=k_values_segment)
@@ -88,7 +88,7 @@ def modular_model_training():
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [1, 0, 0, 0, 0, 0]
+    models_used = [0, 0, 0, 1, 0, 0]
     test_size = [0.2]
     # This is the modular classifier training stage
     results_df, parameters_df = modular_classifier(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
@@ -744,9 +744,9 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
     labels_cleaned = labels[mask]
 
     print("Dataset after dropping: " + str(len(features_cleaned)))
-    print("features_cleaned[0]]: ", features_cleaned[0][:10])
-    print("features_cleaned[1]]: ", features_cleaned[1][:10])
-    print("features_cleaned[2]]: ", features_cleaned[2][:10])
+    # print("features_cleaned[0]]: ", features_cleaned[0][:10])
+    # print("features_cleaned[1]]: ", features_cleaned[1][:10])
+    # print("features_cleaned[2]]: ", features_cleaned[2][:10])
 
     # Custom Scaler
     # scaler_type choice
@@ -755,9 +755,18 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
     features_scaled = custom_scaler(features_cleaned, scaler_type)
 
     print("Scaling Dataset Complete")
-    print("features_scaled[0]]: ", features_scaled[0][:10])
-    print("features_scaled[1]]: ", features_scaled[1][:10])
-    print("features_scaled[2]]: ", features_scaled[2][:10])
+    print("Dataset after scaling: " + str(len(features_scaled)))
+    # print("features_scaled[0]]: ", features_scaled[0][:10])
+    # print("features_scaled[1]]: ", features_scaled[1][:10])
+    # print("features_scaled[2]]: ", features_scaled[2][:10])
+
+    # Specify the amount of variance to retain in the datasets
+    variance_ratio = 0.95
+    pca = PCA(n_components=variance_ratio)
+    features_pca = pca.fit_transform(features_scaled)
+
+    print("After PCA")
+    print("features_pca: " + str(features_pca.shape))
 
     # Graph plots were used to verify the custom scaler worked correctly
 
@@ -830,7 +839,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
         print("test_indices len: ", len(test_indices))
 
         # Create the test set
-        x_test = features_scaled[test_indices]
+        x_test = features_pca[test_indices]
         y_test = labels_cleaned[test_indices]
         # print("x_test[0]: ", x_test[0][:100])
         # print("x_test[1]: ", x_test[1][:100])
@@ -845,10 +854,10 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
         # np.random.shuffle(train_indices)
 
         # Index the training set
-        x_train = features_scaled[train_indices]
+        x_train = features_pca[train_indices]
         y_train = labels_cleaned[train_indices]
     else:
-        x_train, x_test, y_train, y_test = train_test_split(features_scaled, labels_cleaned, test_size=test_size, stratify=labels_cleaned, random_state=random_state)
+        x_train, x_test, y_train, y_test = train_test_split(features_pca, labels_cleaned, test_size=test_size, stratify=labels_cleaned, random_state=random_state)
 
     print("After Split")
     print("x_train size: " + str(len(x_train)))
@@ -864,32 +873,16 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
     if dataset_splitting == 1:
         x_train, y_train = balance_dataset(x_train, y_train, balance_method, oversampling_rate)
 
-    print("Before PCA")
-    print("original_x_train: " + str(x_train.shape))
-    print("original_x_test: " + str(x_test.shape))
-    # print("x_train[0]: ", len(x_train[0]))
-
-    # Specify the amount of variance to retain in the datasets
-    variance_ratio = 0.95
-    pca = PCA(n_components=variance_ratio)
-    reduced_x_train = pca.fit_transform(x_train)        # TODO CHECK PCA AGAIN CAUSE THE DATA IS NO LONGER SCALED
-    reduced_x_test = pca.transform(x_test)
-
-    print("After PCA")
-    print("reduced_x_train: " + str(reduced_x_train.shape))
-    print("reduced_x_test: " + str(reduced_x_test.shape))
-    # print("reduced_x_train[0]: ", len(reduced_x_train[0]))
-    # print("reduced_x_train[0]: ", reduced_x_train[0][:10])
-    # print("reduced_x_train[1]: ", reduced_x_train[1][:10])
-    # print("reduced_x_train[2]: ", reduced_x_train[2][:10])
-    # print("reduced_x_test[0]: ", reduced_x_test[0][:10])
-    # print("reduced_x_test[1]: ", reduced_x_test[1][:10])
-    # print("reduced_x_test[2]: ", reduced_x_test[2][:10])
+    # # Specify the amount of variance to retain in the datasets
+    # variance_ratio = 0.95
+    # pca = PCA(n_components=variance_ratio)
+    # reduced_x_train = pca.fit_transform(x_train)
+    # reduced_x_test = pca.transform(x_test)
 
     # Balance test dataset if the old_method split is used
     if train_test_split_method == "old_method":
         rus = RandomUnderSampler(sampling_strategy='auto', random_state=random_state)
-        reduced_x_test, y_test = rus.fit_resample(reduced_x_test, y_test)
+        x_test, y_test = rus.fit_resample(x_test, y_test)
 
     # Check Train Dataset Sample Distribution
     class_0_sample_count = sum(y_train == 0)
@@ -909,9 +902,9 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
 
     parameters = {
         'train_samples_number': str(len(x_train)),
-        'train_samples_reduced_number': str(len(reduced_x_train)),
+        'train_samples_reduced_number': str(len(x_train)),
         'test_samples_number': str(len(x_test)),
-        'test_samples_reduced_number': str(len(reduced_x_test)),
+        'test_samples_reduced_number': str(len(x_test)),
         'test_size %': test_size * 100,
         'ensemble learning groups': dataset_splitting,
         'dataset_balance_method': balance_method,
@@ -942,7 +935,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
         lr_hyper = [[-7, 7, 15]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train, dataset_splitting)
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(x_train, y_train, dataset_splitting)
 
             model_lr = []
             model_lr_hyper = []
@@ -956,19 +949,19 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
                 # TODO Remove the statistics comparison
                 # Basic statistics Comparison
                 x_train_dataset_split_df = pd.DataFrame(x_train_dataset_split[i])
-                reduced_x_test_df = pd.DataFrame(reduced_x_test)
+                reduced_x_test_df = pd.DataFrame(x_test)
                 train_stats = x_train_dataset_split_df.describe()
                 test_stats = reduced_x_test_df.describe()
 
-                # Display the basic statistics
-                print("Training Data Statistics for ensemble model ", i, ":\n", train_stats)
-                print("Test Data Statistics:\n", test_stats)
-
-                # Perform t-tests for each feature
-                print("T_Tests")
-                for column in range(50):
-                    t_stat, p_value = ttest_ind(x_train_dataset_split_df[column], reduced_x_test_df[column])
-                    print(f'{column}: t-statistic = {t_stat}, p-value = {p_value}')
+                # # Display the basic statistics
+                # print("Training Data Statistics for ensemble model ", i, ":\n", train_stats)
+                # print("Test Data Statistics:\n", test_stats)
+                #
+                # # Perform t-tests for each feature
+                # print("T_Tests")
+                # for column in range(50):
+                #     t_stat, p_value = ttest_ind(x_train_dataset_split_df[column], reduced_x_test_df[column])
+                #     print(f'{column}: t-statistic = {t_stat}, p-value = {p_value}')
 
             estimators_temp = []
             for i in range(dataset_splitting):
@@ -976,35 +969,35 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
 
             # Create a voting classifier
             ensemble = VotingClassifier(estimators=estimators_temp, voting=voting_type)
-            ensemble.fit(reduced_x_test, y_test)
+            ensemble.fit(x_test, y_test)
 
             # Evaluating the classifier
             if voting_type == "soft":
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_lr = training.evaluate_pred_proba_model(y_test, y_pred_proba)
             elif voting_type == "hard":
-                y_pred = ensemble.predict(reduced_x_test)
+                y_pred = ensemble.predict(x_test)
                 performance_metrics_lr = training.evaluate_pred_model(y_test, y_pred)
                 performance_metrics_lr.append(0)
             else:
                 # Default voting type = "soft"
                 print("Wrong Voting Type Detected, defaulting to soft")
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_lr = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
                 # Evaluating the classifier
                 if voting_type == "soft":
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_lr_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
                 elif voting_type == "hard":
-                    y_pred = clf.predict(reduced_x_test)
+                    y_pred = clf.predict(x_test)
                     performance_metrics_lr_individual = training.evaluate_pred_model(y_test, y_pred)
                 else:
                     # Default voting type = "soft"
                     print("Wrong Voting Type Detected, defaulting to soft")
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_lr_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
@@ -1021,10 +1014,10 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             results_model['performance_metrics_lr'] = performance_metrics_lr
         else:
             # Training the classifier
-            model_lr, model_lr_hyper = training.lr_training(reduced_x_train, y_train, lr_hyper)
+            model_lr, model_lr_hyper = training.lr_training(x_train, y_train, lr_hyper)
 
             # Evaluating the classifier
-            y_pred_proba = model_lr.predict_proba(reduced_x_test)[:, 1]
+            y_pred_proba = model_lr.predict_proba(x_test)[:, 1]
             performance_metrics_lr = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
@@ -1042,7 +1035,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
         knn_hyper = [[10, 101, 10], [5, 31, 5]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train, dataset_splitting)
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(x_train, y_train, dataset_splitting)
             model_knn = []
             model_knn_hyper = []
 
@@ -1059,35 +1052,35 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             # Create a voting classifier
             ensemble = VotingClassifier(estimators=estimators_temp, voting=voting_type)
 
-            ensemble.fit(reduced_x_test, y_test)
+            ensemble.fit(x_test, y_test)
 
             # Make predictions and evaluate the ensemble model
             if voting_type == "soft":
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_knn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
             elif voting_type == "hard":
-                y_pred = ensemble.predict(reduced_x_test)
+                y_pred = ensemble.predict(x_test)
                 performance_metrics_knn = training.evaluate_pred_model(y_test, y_pred)
                 performance_metrics_knn.append(0)
             else:
                 # Default voting type = "soft"
                 print("Wrong Voting Type Detected, defaulting to soft")
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_knn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
                 # Evaluating the classifier
                 if voting_type == "soft":
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_knn_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
                 elif voting_type == "hard":
-                    y_pred = clf.predict(reduced_x_test)
+                    y_pred = clf.predict(x_test)
                     performance_metrics_knn_individual = training.evaluate_pred_model(y_test, y_pred)
                 else:
                     # Default voting type = "soft"
                     print("Wrong Voting Type Detected, defaulting to soft")
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_knn_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
@@ -1106,10 +1099,10 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             results_model['performance_metrics_knn'] = performance_metrics_knn
         else:
             # Training the classifier
-            model_knn, model_knn_hyper = training.knn_training(reduced_x_train, y_train, knn_hyper)
+            model_knn, model_knn_hyper = training.knn_training(x_train, y_train, knn_hyper)
 
             # Evaluating the classifier
-            y_pred_proba = model_knn.predict_proba(reduced_x_test)[:, 1]
+            y_pred_proba = model_knn.predict_proba(x_test)[:, 1]
             performance_metrics_knn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
@@ -1128,7 +1121,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
         svm_hyper = [[-7, 7, 15], [-7, 7, 15]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train, dataset_splitting)
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(x_train, y_train, dataset_splitting)
             model_svm = []
             model_svm_hyper = []
 
@@ -1145,35 +1138,35 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             # Create a voting classifier
             ensemble = VotingClassifier(estimators=estimators_temp, voting=voting_type)
 
-            ensemble.fit(reduced_x_test, y_test)
+            ensemble.fit(x_test, y_test)
 
             # Evaluating the classifier
             if voting_type == "soft":
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_svm = training.evaluate_pred_proba_model(y_test, y_pred_proba)
             elif voting_type == "hard":
-                y_pred = ensemble.predict(reduced_x_test)
+                y_pred = ensemble.predict(x_test)
                 performance_metrics_svm = training.evaluate_pred_model(y_test, y_pred)
                 performance_metrics_svm.append(0)
             else:
                 # Default voting type = "soft"
                 print("Wrong Voting Type Detected, defaulting to soft")
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_svm = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
                 # Evaluating the classifier
                 if voting_type == "soft":
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_svm_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
                 elif voting_type == "hard":
-                    y_pred = clf.predict(reduced_x_test)
+                    y_pred = clf.predict(x_test)
                     performance_metrics_svm_individual = training.evaluate_pred_model(y_test, y_pred)
                 else:
                     # Default voting type = "soft"
                     print("Wrong Voting Type Detected, defaulting to soft")
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_svm_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
@@ -1192,10 +1185,10 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             results_model['performance_metrics_svm'] = performance_metrics_svm
         else:
             # Training the classifier
-            model_svm, model_svm_hyper = training.svm_training(reduced_x_train, y_train, svm_hyper)
+            model_svm, model_svm_hyper = training.svm_training(x_train, y_train, svm_hyper)
 
             # Evaluating the classifier
-            y_pred_proba = model_svm.predict_proba(reduced_x_test)[:, 1]
+            y_pred_proba = model_svm.predict_proba(x_test)[:, 1]
             performance_metrics_svm = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
@@ -1215,7 +1208,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
         mlp_hyper = [[10, 101, 10], [-7, 8], [0.05, 1.05, 0.05]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train, dataset_splitting)
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(x_train, y_train, dataset_splitting)
             model_mlp = []
             model_mlp_hyper = []
 
@@ -1232,35 +1225,35 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             # Create a voting classifier
             ensemble = VotingClassifier(estimators=estimators_temp, voting=voting_type)
 
-            ensemble.fit(reduced_x_test, y_test)
+            ensemble.fit(x_test, y_test)
 
             # Evaluating
             if voting_type == "soft":
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_mlp = training.evaluate_pred_proba_model(y_test, y_pred_proba)
             elif voting_type == "hard":
-                y_pred = ensemble.predict(reduced_x_test)
+                y_pred = ensemble.predict(x_test)
                 performance_metrics_mlp = training.evaluate_pred_model(y_test, y_pred)
                 performance_metrics_mlp.append(0)
             else:
                 # Default voting type = "soft"
                 print("Wrong Voting Type Detected, defaulting to soft")
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_mlp = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
                 # Evaluating the classifier
                 if voting_type == "soft":
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_mlp_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
                 elif voting_type == "hard":
-                    y_pred = clf.predict(reduced_x_test)
+                    y_pred = clf.predict(x_test)
                     performance_metrics_mlp_individual = training.evaluate_pred_model(y_test, y_pred)
                 else:
                     # Default voting type = "soft"
                     print("Wrong Voting Type Detected, defaulting to soft")
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_mlp_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
@@ -1279,10 +1272,10 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             results_model['performance_metrics_mlp'] = performance_metrics_mlp
         else:
             # Training the classifier
-            model_mlp, model_mlp_hyper = training.mlp_training(reduced_x_train, y_train, mlp_hyper)
+            model_mlp, model_mlp_hyper = training.mlp_training(x_train, y_train, mlp_hyper)
 
             # Evaluating the classifier
-            y_pred_proba = model_mlp.predict_proba(reduced_x_test)[:, 1]
+            y_pred_proba = model_mlp.predict_proba(x_test)[:, 1]
             performance_metrics_mlp = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
@@ -1309,7 +1302,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
         cnn_hyper = [[3, 6], [2, 4], [0.1, 0.6, 0.2], [4, 6], [6, 9], [10, 260, 20]]
         if dataset_splitting > 1:
             # Split the dataset for ensemble learning
-            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(reduced_x_train, y_train, dataset_splitting)
+            x_train_dataset_split, y_train_dataset_split = training_ensemble_split(x_train, y_train, dataset_splitting)
             model_cnn = []
             model_cnn_hyper = []
 
@@ -1326,35 +1319,35 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             # Create a voting classifier
             ensemble = VotingClassifier(estimators=estimators_temp, voting=voting_type)
 
-            ensemble.fit(reduced_x_test, y_test)
+            ensemble.fit(x_test, y_test)
 
             # Evaluating the classifier
             if voting_type == "soft":
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_cnn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
             elif voting_type == "hard":
-                y_pred = ensemble.predict(reduced_x_test)
+                y_pred = ensemble.predict(x_test)
                 performance_metrics_cnn = training.evaluate_pred_model(y_test, y_pred)
                 performance_metrics_cnn.append(0)
             else:
                 # Default voting type = "soft"
                 print("Wrong Voting Type Detected, defaulting to soft")
-                y_pred_proba = ensemble.predict_proba(reduced_x_test)[:, 1]
+                y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
                 performance_metrics_cnn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Access individual model predictions
             for name, clf in ensemble.named_estimators_.items():
                 # Evaluating the classifier
                 if voting_type == "soft":
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_cnn_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
                 elif voting_type == "hard":
-                    y_pred = clf.predict(reduced_x_test)
+                    y_pred = clf.predict(x_test)
                     performance_metrics_cnn_individual = training.evaluate_pred_model(y_test, y_pred)
                 else:
                     # Default voting type = "soft"
                     print("Wrong Voting Type Detected, defaulting to soft")
-                    y_pred_proba = clf.predict_proba(reduced_x_test)[:, 1]
+                    y_pred_proba = clf.predict_proba(x_test)[:, 1]
                     performance_metrics_cnn_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
                 print(f"Predictions from {name}:")
@@ -1377,10 +1370,10 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             results_model['performance_metrics_cnn'] = performance_metrics_cnn
         else:
             # Training the classifier
-            model_cnn, model_cnn_hyper = training.cnn_training(reduced_x_train, y_train, cnn_hyper)
+            model_cnn, model_cnn_hyper = training.cnn_training(x_train, y_train, cnn_hyper)
 
             # Evaluating the classifier
-            y_pred_proba = model_cnn.predict_proba(reduced_x_test)[:, 1]
+            y_pred_proba = model_cnn.predict_proba(x_test)[:, 1]
             performance_metrics_cnn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
