@@ -20,7 +20,7 @@ import feature_extraction as feat_extr
 import training
 
 # Adding a directory choice to manage the name of each dataset
-data_dir_choice = "coswara"
+data_dir_choice = "smarty4covid"
 
 # TODO Make the dataset path local to the project
 # IMPORTANT NOTICE
@@ -78,9 +78,9 @@ def modular_model_training():
     # k_values_frame = [8, 9, 10, 11, 12]
     # k_values_segment = [5, 7, 10, 12, 15]
 
-    k_values_mfcc = [1, 2, 3, 4, 5]
-    k_values_frame = [8, 9, 10, 11, 12]
-    k_values_segment = [5, 7, 10, 12, 15]
+    k_values_mfcc = [2]
+    k_values_frame = [10]
+    k_values_segment = [15]
 
     modular_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                       k_values_segment=k_values_segment)
@@ -88,7 +88,7 @@ def modular_model_training():
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [0, 0, 0, 1, 0, 0]
+    models_used = [1, 0, 0, 0, 0, 0]
     test_size = [0.2]
     # This is the modular classifier training stage
     results_df, parameters_df = modular_classifier(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
@@ -1010,7 +1010,8 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
                     print("AUC: " + str(performance_metrics_lr_individual[5]))
 
             # Saving the best hyperparameters
-            results_model['Hyper_LR__C'] = model_lr_hyper[0]["C"]
+            # results_model['Hyper_LR__C'] = model_lr_hyper[0]["C"]
+            parameters["Hyper_LR__C"] = model_lr_hyper[0]["C"]
             results_model['performance_metrics_lr'] = performance_metrics_lr
         else:
             # Training the classifier
@@ -1021,7 +1022,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             performance_metrics_lr = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
-            results_model['Hyper_LR__C'] = model_lr_hyper["C"]
+            parameters['Hyper_LR__C'] = model_lr_hyper["C"]
 
             results_model['performance_metrics_lr'] = performance_metrics_lr
 
@@ -1092,10 +1093,10 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
                 if voting_type == "soft":
                     print("AUC: " + str(performance_metrics_knn_individual[5]))
 
-            # TODO Find a better way to show hyperparameters for ensemble
             # Saving the best hyperparameters
-            results_model['Hyper_kNN__n_neighbors'] = model_knn_hyper[0]["n_neighbors"]
-            results_model['Hyper_kNN__leaf_size'] = model_knn_hyper[0]["leaf_size"]
+            parameters['Hyper_kNN__n_neighbors'] = model_knn_hyper[0]["n_neighbors"]
+            parameters['Hyper_kNN__leaf_size'] = model_knn_hyper[0]["leaf_size"]
+
             results_model['performance_metrics_knn'] = performance_metrics_knn
         else:
             # Training the classifier
@@ -1106,8 +1107,8 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             performance_metrics_knn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
-            results_model['Hyper_kNN__n_neighbors'] = model_knn_hyper["n_neighbors"]
-            results_model['Hyper_kNN__leaf_size'] = model_knn_hyper["leaf_size"]
+            parameters['Hyper_kNN__n_neighbors'] = model_knn_hyper["n_neighbors"]
+            parameters['Hyper_kNN__leaf_size'] = model_knn_hyper["leaf_size"]
 
             results_model['performance_metrics_knn'] = performance_metrics_knn
 
@@ -1179,8 +1180,8 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
                     print("AUC: " + str(performance_metrics_svm_individual[5]))
 
             # Saving the best hyperparameters
-            results_model['Hyper_SVM__C'] = model_svm_hyper[0]["C"]
-            results_model['Hyper_SVM__gamma'] = model_svm_hyper[0]["gamma"]
+            parameters['Hyper_SVM__C'] = model_svm_hyper[0]["C"]
+            parameters['Hyper_SVM__gamma'] = model_svm_hyper[0]["gamma"]
 
             results_model['performance_metrics_svm'] = performance_metrics_svm
         else:
@@ -1192,8 +1193,8 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             performance_metrics_svm = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
-            results_model['Hyper_SVM__C'] = model_svm_hyper["C"]
-            results_model['Hyper_SVM__gamma'] = model_svm_hyper["gamma"]
+            parameters['Hyper_SVM__C'] = model_svm_hyper["C"]
+            parameters['Hyper_SVM__gamma'] = model_svm_hyper["gamma"]
 
             results_model['performance_metrics_svm'] = performance_metrics_svm
     if models_used[3] == 1:
@@ -1265,6 +1266,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
                 if voting_type == "soft":
                     print("AUC: " + str(performance_metrics_mlp_individual[5]))
 
+            # TODO Change the last model parameters display
             # Saving the best hyperparameters
             results_model['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper[0]["hidden_layer_sizes"]
             results_model['Hyper_MLP__alpha'] = model_mlp_hyper[0]["alpha"]
@@ -1279,9 +1281,9 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             performance_metrics_mlp = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
-            results_model['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper["hidden_layer_sizes"]
-            results_model['Hyper_MLP__alpha'] = model_mlp_hyper["alpha"]
-            results_model['Hyper_MLP__learning_rate_init'] = model_mlp_hyper["learning_rate_init"]
+            parameters['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper["hidden_layer_sizes"]
+            parameters['Hyper_MLP__alpha'] = model_mlp_hyper["alpha"]
+            parameters['Hyper_MLP__learning_rate_init'] = model_mlp_hyper["learning_rate_init"]
 
             results_model['performance_metrics_mlp'] = performance_metrics_mlp
     if models_used[4] == 1:
@@ -1360,12 +1362,12 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
                     print("AUC: " + str(performance_metrics_cnn_individual[5]))
 
             # Saving the best hyperparameters
-            results_model['Hyper_CNN__num_filters'] = model_cnn_hyper[0]["num_filters"]
-            results_model['Hyper_CNN__kernel_size'] = model_cnn_hyper[0]["kernel_size"]
-            results_model['Hyper_CNN__dropout_rate'] = model_cnn_hyper[0]["dropout_rate"]
-            results_model['Hyper_CNN__dense_size'] = model_cnn_hyper[0]["dense_size"]
-            results_model['Hyper_CNN__batch_size'] = model_cnn_hyper[0]["batch_size"]
-            results_model['Hyper_CNN__epochs'] = model_cnn_hyper[0]["epochs"]
+            parameters['Hyper_CNN__num_filters'] = model_cnn_hyper[0]["num_filters"]
+            parameters['Hyper_CNN__kernel_size'] = model_cnn_hyper[0]["kernel_size"]
+            parameters['Hyper_CNN__dropout_rate'] = model_cnn_hyper[0]["dropout_rate"]
+            parameters['Hyper_CNN__dense_size'] = model_cnn_hyper[0]["dense_size"]
+            parameters['Hyper_CNN__batch_size'] = model_cnn_hyper[0]["batch_size"]
+            parameters['Hyper_CNN__epochs'] = model_cnn_hyper[0]["epochs"]
 
             results_model['performance_metrics_cnn'] = performance_metrics_cnn
         else:
@@ -1377,12 +1379,12 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             performance_metrics_cnn = training.evaluate_pred_proba_model(y_test, y_pred_proba)
 
             # Saving the best hyperparameters
-            results_model['Hyper_CNN__num_filters'] = model_cnn_hyper["num_filters"]
-            results_model['Hyper_CNN__kernel_size'] = model_cnn_hyper["kernel_size"]
-            results_model['Hyper_CNN__dropout_rate'] = model_cnn_hyper["dropout_rate"]
-            results_model['Hyper_CNN__dense_size'] = model_cnn_hyper["dense_size"]
-            results_model['Hyper_CNN__batch_size'] = model_cnn_hyper["batch_size"]
-            results_model['Hyper_CNN__epochs'] = model_cnn_hyper["epochs"]
+            parameters['Hyper_CNN__num_filters'] = model_cnn_hyper["num_filters"]
+            parameters['Hyper_CNN__kernel_size'] = model_cnn_hyper["kernel_size"]
+            parameters['Hyper_CNN__dropout_rate'] = model_cnn_hyper["dropout_rate"]
+            parameters['Hyper_CNN__dense_size'] = model_cnn_hyper["dense_size"]
+            parameters['Hyper_CNN__batch_size'] = model_cnn_hyper["batch_size"]
+            parameters['Hyper_CNN__epochs'] = model_cnn_hyper["epochs"]
 
             results_model['performance_metrics_cnn'] = performance_metrics_cnn
 
@@ -1404,6 +1406,8 @@ def models_name_switch_table(model):
 
 # Function to store the results of each individual iteration
 def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_identifier):
+    print("Iteration Results:")
+    print(results_df)
     for perf_res in models_used_str:
         if perf_res in results_df:
             metrics = results_df[perf_res]

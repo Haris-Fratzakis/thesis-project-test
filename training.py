@@ -42,7 +42,7 @@ def lr_training(x_train, y_train, lr_hyper=None, random_state=None):
         param_grid_l2['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
 
     # Create a logistic regression model
-    logistic = LogisticRegression(solver='saga', max_iter=6000, random_state=random_state)
+    logistic = LogisticRegression(max_iter=6000, random_state=random_state)
 
     print("LR Classifier Start")
 
@@ -89,7 +89,7 @@ def svm_training(x_train, y_train, svm_hyper):
     }
 
     # Create an SVM classifier instance
-    svm = SVC(probability=True, max_iter=3000)
+    svm = SVC(max_iter=3000)
 
     print("SVM Classifier Start")
     # Create a GridSearchCV instance
