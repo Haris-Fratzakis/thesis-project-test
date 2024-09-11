@@ -80,7 +80,7 @@ def modular_model_training():
 
     k_values_mfcc = [2]
     k_values_frame = [10]
-    k_values_segment = [15]
+    k_values_segment = [10, 12, 15]
 
     modular_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                       k_values_segment=k_values_segment)
@@ -88,7 +88,7 @@ def modular_model_training():
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [1, 0, 0, 0, 0, 0]
+    models_used = [0, 1, 0, 0, 0, 0]
     test_size = [0.2]
     # This is the modular classifier training stage
     results_df, parameters_df = modular_classifier(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
@@ -1406,8 +1406,8 @@ def models_name_switch_table(model):
 
 # Function to store the results of each individual iteration
 def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_identifier):
-    print("Iteration Results:")
-    print(results_df)
+    # print("Iteration Results:")
+    # print(results_df)
     for perf_res in models_used_str:
         if perf_res in results_df:
             metrics = results_df[perf_res]
@@ -1426,6 +1426,8 @@ def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_ide
 
             # Join the new columns with the expanded_results_df DataFrame
             parameters_df = pd.concat([parameters_df, array_df], axis=1)
+            print("Current Iteration Results")
+            print(parameters_df.iloc[-1])
 
             metrics_folder = "./" + data_dir_choice + "/model_metrics"
 
@@ -1435,7 +1437,8 @@ def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_ide
 
             # Find the model with the best ROC curve for each model type used
             max_row = parameters_df.loc[parameters_df[perf_res + "_AUC"].idxmax()]
-            print(max_row)
+            # print("max_row")
+            # print(max_row)
 
             # Create two blank rows to separate the best results
             # Add the max row label of each model used
@@ -1487,6 +1490,7 @@ def results_display(results_df, models_used_str, parameters_df):
 
             # Find the model with the best ROC curve for each model type used
             max_row = parameters_df.loc[parameters_df[perf_res + "_AUC"].idxmax()]
+            print("Max Row Results")
             print(max_row)
 
             # Create two blank rows to separate the best results
