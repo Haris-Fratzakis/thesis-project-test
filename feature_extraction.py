@@ -108,21 +108,29 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             # frame_size = calculate_frame_size(segment_length)
 
             mfccs = librosa.feature.mfcc(y=segment, sr=sample_rate, n_mfcc=n_mfcc, n_fft=frame_size, hop_length=hop_length, n_mels=n_mels)
+            # print("MFCCs in segment " + str(i))
+            # print(mfccs)
             if np.isnan(mfccs).any():
                 print("NaN Values for MFCCs for filepath: ", file_path)
                 print("NaN MFCCs: ", mfccs)
 
             sc = librosa.feature.spectral_centroid(y=segment, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
+            # print("SC in segment " + str(i))
+            # print(sc)
             if np.isnan(sc).any():
                 print("NaN Values for SC for filepath: ", file_path)
                 print("NaN SC: ", sc)
 
             sr = librosa.feature.spectral_rolloff(y=segment, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
+            # print("SR in segment " + str(i))
+            # print(sr)
             if np.isnan(sr).any():
                 print("NaN Values for SR for filepath: ", file_path)
                 print("NaN SR: ", sr)
 
             zcr = librosa.feature.zero_crossing_rate(y=segment, frame_length=frame_size, hop_length=hop_length)
+            # print("ZCR in segment " + str(i))
+            # print(zcr)
             if np.isnan(zcr).any():
                 print("NaN Values for ZCR for filepath: ", file_path)
                 print("NaN ZCR: ", zcr)
