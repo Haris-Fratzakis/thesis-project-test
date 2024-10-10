@@ -16,13 +16,12 @@ from scipy.stats import mode
 # Feature Extraction Function with one method and one hyperparameter
 def extract_features_simple(data_dir, audio_path, audio_name, n_mfcc):
     file_path = os.path.join(data_dir, audio_path, audio_name)
-    # Check if the directory exists, if not, create it
+    # Check if the audio file is empty
     if os.path.exists(file_path):
         if os.path.getsize(file_path) <= 2048:
             # print(f"The audio file {file_path} is empty. Skipping this file.")
             return False
         audio, sample_rate = librosa.load(file_path, res_type='kaiser_fast')
-        # Check if the audio file is empty
         mfccs = librosa.feature.mfcc(y=audio, sr=sample_rate, n_mfcc=n_mfcc)
         mfccs_processed = np.mean(mfccs.T, axis=0)
         return mfccs_processed
@@ -32,7 +31,7 @@ def extract_features_simple(data_dir, audio_path, audio_name, n_mfcc):
 # Feature Extraction Function with four methods and two hyperparameters
 def extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length):
     file_path = os.path.join(data_dir, audio_path, audio_name)
-    # Check if the directory exists, if not, create it
+    # Check if the audio file is empty
     if os.path.exists(file_path):
         if os.path.getsize(file_path) <= 2048:
             # print(f"The audio file {file_path} is empty. Skipping this file.")
@@ -80,6 +79,7 @@ def pad_or_truncate(features, target_length):
 # Feature extraction function with four methods and three hyperparameters
 def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop_length, frame_size, n_segments):
     file_path = os.path.join(data_dir, audio_path, audio_name)
+    # Check if the audio file is empty
     if os.path.exists(file_path):
         if os.path.getsize(file_path) <= 2048:
             print("Filepath with tiny size: ", file_path)

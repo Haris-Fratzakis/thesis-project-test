@@ -45,18 +45,18 @@ random_state_global_value = 227
 # This function gets called first
 # Function to have modular feature extraction and training methods
 def modular_model_training():
-    # Load the index csv
+    # Load the index csv of the dataset
     if data_dir_choice == "smarty4covid":
         data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
         data = pd.read_csv(data_index)
 
-        # Exclude rows where 'covid_status' is 'no'
+        # Exclude rows where 'covid_status' is 'no' (no validation)
         data = data[data.covid_status != 'no']
     elif data_dir_choice == "coswara":
         data_index = os.path.join(data_dir, 'combined_data_renamed.csv')
         data = pd.read_csv(data_index)
 
-        # Exclude rows where 'covid_status' is 'under validation' or 'resp_illness_not_identified'
+        # Exclude rows where 'covid_status' is 'under validation' or 'resp_illness_not_identified' (no validation)
         data = data[data.covid_status != 'under_validation']
         data = data[data.covid_status != 'resp_illness_not_identified']
     else:
@@ -65,7 +65,7 @@ def modular_model_training():
         data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
         data = pd.read_csv(data_index)
 
-        # Exclude rows where 'covid_status' is 'no'
+        # Exclude rows where 'covid_status' is 'no' (no validation)
         data = data[data.covid_status != 'no']
 
     # Modular feature extraction stage
@@ -78,9 +78,9 @@ def modular_model_training():
     # k_values_frame = [8, 9, 10, 11, 12]
     # k_values_segment = [5, 7, 10, 12, 15]
 
-    k_values_mfcc = [2]
-    k_values_frame = [10]
-    k_values_segment = [10, 12, 15]
+    k_values_mfcc = [5]
+    k_values_frame = [12]
+    k_values_segment = [15]
 
     modular_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                       k_values_segment=k_values_segment)
@@ -88,7 +88,7 @@ def modular_model_training():
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
     # slots are [LR, KNN, SVM, MLP, CNN, LSTM]
-    models_used = [0, 1, 0, 0, 0, 0]
+    models_used = [0, 0, 0, 1, 0, 0]
     test_size = [0.2]
     # This is the modular classifier training stage
     results_df, parameters_df = modular_classifier(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
@@ -123,7 +123,7 @@ def pad_or_truncate(features, target_length):
         return features
 
 
-# Function for feature extraction
+# Function for feature extraction initialization
 def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segment=None):
     if k_values_mfcc is None:
         k_values_mfcc = [1]
@@ -132,7 +132,6 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
     if k_values_segment is None:
         k_values_segment = [-1]
 
-    # Initialize the LabelEncoder
     le = LabelEncoder()
 
     # Calculate the amount of iterations that feature extraction has to go through
@@ -164,7 +163,7 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
             successful_indices = []
             features_list = []
 
-            # Check if the file doesn't exist
+            # Check if the file doesn't exist (so it doesn't repeat over extracted features from an identical previous iteration)
             if not os.path.exists(feature_filename):
                 # Extract features and simultaneously filter labels
                 for idx, row in data.iterrows():
@@ -217,7 +216,7 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
                     successful_indices = []
                     features_list = []
 
-                    # Check if the file doesn't exist
+                    # Check if the file doesn't exist (so it doesn't repeat over extracted features from an identical previous iteration)
                     if not os.path.exists(feature_filename):
                         # Extract features and simultaneously filter labels
                         for idx, row in data.iterrows():
@@ -271,7 +270,7 @@ def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_se
                         successful_indices = []
                         features_list = []
 
-                        # Check if the file doesn't exist
+                        # Check if the file doesn't exist (so it doesn't repeat over extracted features from an identical previous iteration)
                         if not os.path.exists(feature_filename):
                             # Extract features and simultaneously filter labels
                             for idx, row in data.iterrows():
@@ -357,7 +356,7 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
                 # Name of the directory and file where the features will be saved
                 features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
 
-                # Check if the directory exists, if not, report the error
+                # Check if the directory exists
                 if not os.path.exists(features_folder):
                     print("Error, data mismatch, features folder doesn't exist in test classifier")
 
@@ -389,7 +388,7 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
                         # Name of the directory and file where the features will be saved
                         features_folder = data_dir_choice + "/extracted_features/feat_extr"
 
-                        # Check if the directory exists, if not, report the error
+                        # Check if the directory exists
                         if not os.path.exists(features_folder):
                             print("Error, data mismatch, features folder doesn't exist in test classifier")
 
@@ -420,7 +419,7 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
                             # Name of the directory and file where the features will be saved
                             features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
 
-                            # Check if the directory exists, if not, report the error
+                            # Check if the directory exists
                             if not os.path.exists(features_folder):
                                 print("Error, data mismatch, features folder doesn't exist in test classifier")
 
@@ -447,13 +446,13 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
                             else:
                                 print("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
 
-    # After the loop you can convert results to a DataFrame and analyze it
+    # After the loop convert results to a DataFrame
     results_df = pd.DataFrame(results)
     parameters_df = pd.DataFrame(parameters)
     return results_df, parameters_df
 
 
-# Function for balancing the dataset
+# Function for balancing the dataset NOT USED ANYMORE
 def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
     # Check class distribution
     # Class 0: Negative Covid
@@ -554,7 +553,7 @@ def training_ensemble_split(reduced_x_train, y_train_combined, dataset_splitting
     # Shuffle the majority class
     # x_majority, y_majority = shuffle(x_majority, y_majority, random_state=random_state)
 
-    # Split the majority class into three parts
+    # Split the majority class into dataset_splitting parts
     split_size = len(x_majority) // dataset_splitting
 
     x_majority_split = []
@@ -574,7 +573,9 @@ def training_ensemble_split(reduced_x_train, y_train_combined, dataset_splitting
         # Shuffle the datasets to mix minority and majority instances
         # x_split_dataset[i], y_split_dataset[i] = shuffle(x_split_dataset[i], y_split_dataset[i], random_state=random_state)
 
-        print(len(x_split_dataset[i]))
+        print("Ensemble Training Dataset " + str(i) + " with: " + str(len(x_split_dataset[i])) + " Samples")
+        print("Class 0:", len(x_majority_split[i]))
+        print("Class 1:", len(x_minority))
 
     # Create last ensemble dataset too
     x_majority_split.append(x_majority[(dataset_splitting - 1) * split_size:])
@@ -586,7 +587,9 @@ def training_ensemble_split(reduced_x_train, y_train_combined, dataset_splitting
     # Shuffle the last ensemble dataset
     # x_split_dataset[dataset_splitting - 1], y_split_dataset[dataset_splitting - 1] = shuffle(x_split_dataset[dataset_splitting - 1], y_split_dataset[dataset_splitting - 1], random_state=random_state)
 
-    print(len(x_split_dataset[dataset_splitting - 1]))
+    print("Ensemble Training Dataset " + str(dataset_splitting - 1) + " with: " + str(len(x_split_dataset[dataset_splitting - 1])) + " Samples")
+    print("Class 0:", len(x_majority_split[dataset_splitting - 1]))
+    print("Class 1:", len(x_minority))
 
     return x_split_dataset, y_split_dataset
 
@@ -710,7 +713,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
     for shape in unique_shapes:
         print(f"Shape: {shape}, Count: {shapes.count(shape)}")
 
-    # Balance dataset (before ensemble was applied)
+    # Balance dataset NOT CURRENTLY USED (it was used before ensemble was implemented)
     # Methods: Resampling, SMOTE
     balance_method = "Resampling"
     oversampling_rate = 0.6
@@ -756,7 +759,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
 
     print("Scaling Dataset Complete")
     print("Dataset after scaling: " + str(len(features_scaled)))
-    # print("features_scaled[0]]: ", features_scaled[0][:10])
+    # print("features_scaled[0]]: ", features_scaled[0][10:100])
     # print("features_scaled[1]]: ", features_scaled[1][:10])
     # print("features_scaled[2]]: ", features_scaled[2][:10])
 
@@ -767,53 +770,9 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
 
     print("After PCA")
     print("features_pca: " + str(features_pca.shape))
+    # print("features_pca[0]]: ", features_pca[0][10:100])
 
     # Graph plots were used to verify the custom scaler worked correctly
-
-    # matplotlib.use('Agg')  # Use a non-interactive backend like 'Agg' for script execution
-    # features_original = []
-    # features_standardized = []
-    # # Create x-axis labels for all features across all samples
-    # num_samples, num_features = features_cleaned.shape
-    # print("num_samples", num_samples)
-    # print("num_features", num_features)
-    # for i in range(num_features):
-    #     temp_original = []
-    #     temp_standardized = []
-    #     for j in range(num_samples):
-    #         temp_original.append(features_cleaned[j][i])
-    #         temp_standardized.append(features_scaled[j][i])
-    #     features_original.append(temp_original)
-    #     features_standardized.append(temp_standardized)
-    #
-    # # Plotting
-    # fig, axes = plt.subplots(2, 1, figsize=(14, 10))
-    #
-    # print("calc done")
-    #
-    # # Plot flattened original data
-    # axes[0].plot(features_original, marker='o')
-    # axes[0].set_title('Original Data')
-    # axes[0].set_xlabel('Features for All Samples')
-    # axes[0].set_ylabel('Value')
-    # # axes[0].legend()
-    #
-    # print("original data done")
-    #
-    # # Plot flattened standardized data
-    # axes[1].plot(features_standardized, marker='o')
-    # axes[1].set_title('Standardized Data')
-    # axes[1].set_xlabel('Features for All Samples')
-    # axes[1].set_ylabel('Value')
-    # # axes[1].legend()
-    #
-    # print("scaled data done")
-    #
-    # plt.tight_layout()
-    # # plt.show()
-    # plt.savefig('test.png')
-    #
-    # print("plot done")
 
     # Split dataset
     if train_test_split_method == "new_method":
@@ -921,8 +880,8 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
     print("frame_size: " + str(frame_size))
     print("segments: " + str(n_segments))
 
-    # Voting Classifier Voting Type
-    # # Methods: "soft", "hard"
+    # Classifier Voting Type
+    # Methods: "soft", "hard"
     voting_type = "hard"
 
     # Initialize all models
@@ -1025,7 +984,6 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             parameters['Hyper_LR__C'] = model_lr_hyper["C"]
 
             results_model['performance_metrics_lr'] = performance_metrics_lr
-
     if models_used[1] == 1:
         # knn_hyper refers to the hyperparameters for knn
         # first slot is number of neighbors
@@ -1111,7 +1069,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             parameters['Hyper_kNN__leaf_size'] = model_knn_hyper["leaf_size"]
 
             results_model['performance_metrics_knn'] = performance_metrics_knn
-
+    # NOT CURRENTLY BEING USED
     if models_used[2] == 1:
         # svm_hyper refers to the hyperparameters for svm
         # first slot is C, the regularization strength
@@ -1266,11 +1224,11 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
                 if voting_type == "soft":
                     print("AUC: " + str(performance_metrics_mlp_individual[5]))
 
-            # TODO Change the last model parameters display
             # Saving the best hyperparameters
-            results_model['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper[0]["hidden_layer_sizes"]
-            results_model['Hyper_MLP__alpha'] = model_mlp_hyper[0]["alpha"]
-            results_model['Hyper_MLP__learning_rate_init'] = model_mlp_hyper[0]["learning_rate_init"]
+            parameters['Hyper_MLP__hidden_layer_sizes'] = model_mlp_hyper[0]["hidden_layer_sizes"]
+            parameters['Hyper_MLP__alpha'] = model_mlp_hyper[0]["alpha"]
+            parameters['Hyper_MLP__learning_rate_init'] = model_mlp_hyper[0]["learning_rate_init"]
+
             results_model['performance_metrics_mlp'] = performance_metrics_mlp
         else:
             # Training the classifier
@@ -1286,6 +1244,7 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             parameters['Hyper_MLP__learning_rate_init'] = model_mlp_hyper["learning_rate_init"]
 
             results_model['performance_metrics_mlp'] = performance_metrics_mlp
+    # NOT CURRENTLY BEING USED
     if models_used[4] == 1:
         # cnn_hyper refers to the hyperparameters for cnn
         # first slot is num_filters, the No. of Conv filters
@@ -1414,8 +1373,6 @@ def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_ide
 
             # Convert the 'array_column' to a DataFrame and expand it into separate columns
             array_df = pd.DataFrame(metrics.tolist(), index=results_df.index)
-
-            # Your specific list of names for the expanded columns
             column_names = [perf_res + "_specificity", perf_res + "_sensitivity", perf_res + "_precision", perf_res + "_accuracy", perf_res + "_F1", perf_res + "_AUC"]
 
             # Ensure the list length matches the number of columns to rename
@@ -1424,7 +1381,7 @@ def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_ide
             else:
                 raise ValueError("The number of column names does not match the number of columns.")
 
-            # Join the new columns with the expanded_results_df DataFrame
+            # Join the new columns back with the expanded_results_df DataFrame
             parameters_df = pd.concat([parameters_df, array_df], axis=1)
             print("Current Iteration Results")
             print(parameters_df.iloc[-1])
@@ -1435,12 +1392,12 @@ def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_ide
             if not os.path.exists(metrics_folder):
                 os.makedirs(metrics_folder)
 
-            # Find the model with the best ROC curve for each model type used
+            # Find the model with the best ROC curve for each model type used (OLD, not taken into account for hard voting ensemble results)
             max_row = parameters_df.loc[parameters_df[perf_res + "_AUC"].idxmax()]
             # print("max_row")
             # print(max_row)
 
-            # Create two blank rows to separate the best results
+            # Create two blank rows to separate the best result
             # Add the max row label of each model used
             first_blank_row = pd.DataFrame([{}], columns=parameters_df.columns)
             second_blank_row = pd.DataFrame({parameters_df.columns[0]: ["Best Model for " + perf_res]}, index=[0])
@@ -1469,8 +1426,6 @@ def results_display(results_df, models_used_str, parameters_df):
 
             # Convert the 'array_column' to a DataFrame and expand it into separate columns
             array_df = pd.DataFrame(metrics.tolist(), index=results_df.index)
-
-            # Your specific list of names for the expanded columns
             column_names = [perf_res + "_specificity", perf_res + "_sensitivity", perf_res + "_precision", perf_res + "_accuracy", perf_res + "_F1", perf_res + "_AUC"]
 
             # Ensure the list length matches the number of columns to rename
@@ -1479,7 +1434,7 @@ def results_display(results_df, models_used_str, parameters_df):
             else:
                 raise ValueError("The number of column names does not match the number of columns.")
 
-            # Join the new columns with the expanded_results_df DataFrame
+            # Join the new columns back with the expanded_results_df DataFrame
             parameters_df = pd.concat([parameters_df, array_df], axis=1)
 
             metrics_folder = "./" + data_dir_choice + "/model_metrics"
@@ -1488,12 +1443,12 @@ def results_display(results_df, models_used_str, parameters_df):
             if not os.path.exists(metrics_folder):
                 os.makedirs(metrics_folder)
 
-            # Find the model with the best ROC curve for each model type used
+            # Find the model with the best ROC curve for each model type used (OLD, not taken into account for hard voting ensemble results)
             max_row = parameters_df.loc[parameters_df[perf_res + "_AUC"].idxmax()]
             print("Max Row Results")
             print(max_row)
 
-            # Create two blank rows to separate the best results
+            # Create two blank rows to separate the best result
             # Add the max row label of each model used
             first_blank_row = pd.DataFrame([{}], columns=parameters_df.columns)
             second_blank_row = pd.DataFrame({parameters_df.columns[0]: ["Best Model for " + perf_res]}, index=[0])

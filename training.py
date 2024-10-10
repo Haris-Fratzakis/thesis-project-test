@@ -33,7 +33,7 @@ def lr_training(x_train, y_train, lr_hyper=None, random_state=None):
     if random_state is not None:
         np.random.seed(random_state)
 
-    # create the hyperparameter grid for each penalty (l2 only)
+    # Create the hyperparameter grid for each penalty (l2 only)
     param_grid_l2 = {
         'penalty': ['l2']
     }
@@ -41,7 +41,7 @@ def lr_training(x_train, y_train, lr_hyper=None, random_state=None):
     if lr_hyper[0] != [-1]:
         param_grid_l2['C'] = np.logspace(lr_hyper[0][0], lr_hyper[0][1], lr_hyper[0][2])
 
-    # Create a logistic regression model
+    # Create a logistic regression classifier instance
     logistic = LogisticRegression(max_iter=6000, random_state=random_state)
 
     print("LR Classifier Start")
@@ -52,6 +52,7 @@ def lr_training(x_train, y_train, lr_hyper=None, random_state=None):
     # Fit the model with the grid search
     clf_2.fit(x_train, y_train)
 
+    # Retrieve the best estimator (model with the best hyperparameters)
     model_lr = clf_2.best_estimator_
     model_lr_hyper = clf_2.best_params_
     return model_lr, model_lr_hyper
@@ -82,6 +83,7 @@ def knn_training(x_train, y_train, knn_hyper):
 
 
 # Support Vector Machine Model
+# NOT CURRENTLY BEING USED
 def svm_training(x_train, y_train, svm_hyper):
     param_grid = {
         'C': np.logspace(svm_hyper[0][0], svm_hyper[0][1], svm_hyper[0][2]),
@@ -107,14 +109,13 @@ def svm_training(x_train, y_train, svm_hyper):
 
 # Function for Multi-layer Perceptron Model
 def mlp_training(x_train, y_train, mlp_hyper):
-    # Define the parameter grid
     param_grid = {
         'hidden_layer_sizes': [(n,) for n in range(mlp_hyper[0][0], mlp_hyper[0][1], mlp_hyper[0][2])],  # (10,), (20,), ..., (100,)
         'alpha': [10 ** i for i in range(mlp_hyper[1][0], mlp_hyper[1][1])],  # 10^-7, 10^-6, ..., 10^7
         'learning_rate_init': np.arange(mlp_hyper[2][0], mlp_hyper[2][1], mlp_hyper[2][2])  # 0.05, 0.1, ..., 1
     }
 
-    # Create the MLPClassifier
+    # Create an MLP classifier instance
     mlp = MLPClassifier(solver='adam', early_stopping=True, n_iter_no_change=10, max_iter=200)
 
     print("MLP Classifier Start")
@@ -150,10 +151,9 @@ def cnn_training(x_train, y_train, cnn_hyper):
         model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
         return model
 
-    # Wrap the Keras model with KerasClassifier
+    # Wrap the Keras model with KerasClassifier NOT WORKING ANYMORE
     cnn = KerasClassifier(build_fn=create_model, verbose=0)
 
-    # Define the parameter grid
     param_grid = {
         'num_filters': [3 * 2 ** k4 for k4 in range(cnn_hyper[0][0], cnn_hyper[0][1])],   # 3 × 2k4 where k4 = 3, 4, 5
         'kernel_size': range(cnn_hyper[1][0], cnn_hyper[1][1]),     # 2 and 3
@@ -165,7 +165,6 @@ def cnn_training(x_train, y_train, cnn_hyper):
 
     print("CNN Classifier Start")
 
-    # Define the early stopping callback
     early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
     # Create the GridSearchCV object
@@ -184,7 +183,7 @@ def cnn_training(x_train, y_train, cnn_hyper):
 # Function for Long Short-Term Memory Model
 # NOT CURRENTLY BEING USED
 def lstm_training(x_train, y_train):
-    # Define a function to create the model, required for KerasClassifier
+    # Define a function to create the model, required for KerasClassifier NOT WORKING ANYMORE
     def create_model(dropout_rate, dense_size, lstm_units, learning_rate):
         model = Sequential()
         model.add(LSTM(lstm_units, activation='relu',  input_shape=(64, 64, 1), dropout=dropout_rate))
@@ -200,7 +199,6 @@ def lstm_training(x_train, y_train):
     # Create the KerasClassifier
     lstm = KerasClassifier(build_fn=create_model, verbose=0)
 
-    # Define the parameter grid
     param_grid = {
         'dropout_rate': np.arange(0.1, 0.6, 0.2),   # 0.1 to 0.5 in steps of 0.2
         'dense_size': [2 ** k5 for k5 in [4, 5]],   # 2k5 where k5 = 4, 5
