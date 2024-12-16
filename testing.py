@@ -1,18 +1,12 @@
 import os
-import random
-import matplotlib
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.stats import mode, ttest_ind
-from sklearn.metrics import accuracy_score
+from scipy.stats import mode
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import VotingClassifier
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import LabelEncoder
 from sklearn.decomposition import PCA
-from sklearn.utils import shuffle
-from imblearn.over_sampling import RandomOverSampler, SMOTE
+from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from datetime import datetime
 
@@ -20,53 +14,37 @@ import feature_extraction as feat_extr
 import training
 
 # Adding a directory choice to manage the name of each dataset
+# Changing Dataset is done by changing this variable
+# The dataset directory and the csv file have to be named with the same name as the value
 data_dir_choice = "smarty4covid"
-
-# TODO Make the dataset path local to the project
-# IMPORTANT NOTICE
-# If run on different PCs, this needs to be changed to point to the dataset directory
-# Every dataset path query is formed in relation to this variable (data_dir)
-# Load the index csv
-if data_dir_choice == "smarty4covid":
-    data_dir = "E:/Storage/University/Thesis/smarty4covid/"
-elif data_dir_choice == "coswara":
-    data_dir = "E:/Storage/University/Thesis/iiscleap-Coswara-Data-bf300ae/Extracted_data_mix"
-else:
-    print("No Data Specified, thus defaulting to smarty4covid")
-    data_dir = "E:/Storage/University/Thesis/smarty4covid/"
 
 # Setting a global random value to use in random states in the rest of the code
 # So multiple successive iterations of the program can work on the same data in the same way
-# in order for proper comparisons to be made
 # random_state_global_value = random.randint(1, 1000)
 random_state_global_value = 227
-
 
 # This function gets called first
 # Function to have modular feature extraction and training methods
 def modular_model_training():
-    # Load the index csv of the dataset
-    if data_dir_choice == "smarty4covid":
-        data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
-        data = pd.read_csv(data_index)
+    # Set the database directory and csv file location
+    cwd = os.getcwd()
+    data_dir = os.path.join(cwd, data_dir_choice)
+    data_index = os.path.join(data_dir, data_dir_choice + '.csv')
+    if not os.path.isfile(data_index):
+        raise Exception("No csv found at " + data_index)
+    data = pd.read_csv(data_index)
 
+    # Exclude non-valid rows for each dataset which requires it
+    if data_dir_choice == "smarty4covid":
         # Exclude rows where 'covid_status' is 'no' (no validation)
         data = data[data.covid_status != 'no']
     elif data_dir_choice == "coswara":
-        data_index = os.path.join(data_dir, 'combined_data_renamed.csv')
-        data = pd.read_csv(data_index)
-
         # Exclude rows where 'covid_status' is 'under validation' or 'resp_illness_not_identified' (no validation)
         data = data[data.covid_status != 'under_validation']
         data = data[data.covid_status != 'resp_illness_not_identified']
     else:
-        # No Data Specified, thus defaulting to smarty4covid
-        print("Incorrect dataset specified, defaulting to smarty4covid")
-        data_index = os.path.join(data_dir, 'smarty4covid_tabular_data.csv')
-        data = pd.read_csv(data_index)
-
-        # Exclude rows where 'covid_status' is 'no' (no validation)
-        data = data[data.covid_status != 'no']
+        # Unknown dataset specified
+        raise Exception("Unknown dataset specified with name " + data_dir_choice)
 
     # Modular feature extraction stage
 
@@ -82,7 +60,7 @@ def modular_model_training():
     k_values_frame = [12]
     k_values_segment = [15]
 
-    modular_feat_extr(data=data, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
+    modular_feat_extr(data=data, data_dir=data_dir, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
                       k_values_segment=k_values_segment)
 
     # models_used signifies which model is used, each slot signifies a different model
@@ -97,8 +75,6 @@ def modular_model_training():
 
     models_used = models_used_name_converter(models_used)
     results_display(results_df, models_used, parameters_df)
-
-    return results_df
 
 
 # Function that converts models_used values to their names
@@ -124,7 +100,7 @@ def pad_or_truncate(features, target_length):
 
 
 # Function for feature extraction initialization
-def modular_feat_extr(data, k_values_mfcc=None, k_values_frame=None, k_values_segment=None):
+def modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k_values_segment=None):
     if k_values_mfcc is None:
         k_values_mfcc = [1]
     if k_values_frame is None:
@@ -471,7 +447,7 @@ def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
 
             # With ensemble training method, oversampling is not necessary
             # # Define the resampling strategy
-            # over = RandomOverSampler(sampling_strategy=oversampling_rate, random_state=random_state_global_value)  # Oversample the minority to have oversampling_rate * 100 % of the majority class
+            # over = RandomOverSampler(sampling_strategy=oversampling_rate, random_state=random_state_global_value)  # Oversampling the minority to have oversampling_rate * 100 % of the majority class
             #
             # # Apply oversampling
             # features_oversampled, labels_oversampled = over.fit_resample(features, labels)
@@ -1460,5 +1436,8 @@ def results_display(results_df, models_used_str, parameters_df):
             # Save the expanded DataFrame to a CSV file
             parameters_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
 
-
-results_df = modular_model_training()
+try:
+    modular_model_training()
+except Exception as E:
+    print("A problem was found")
+    print(E)
