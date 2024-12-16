@@ -1,1 +1,7 @@
 .idea
+/coswara/
+/coswara_program/extracted_features/
+/coswara_program/model_metrics/
+/smarty4covid/
+/smarty4covid_program/extracted_features/
+/smarty4covid_program/model_metrics/
