@@ -102,7 +102,7 @@ def pad_or_truncate(features, target_length):
 # Function for feature extraction initialization
 def modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k_values_segment=None):
     if k_values_mfcc is None:
-        k_values_mfcc = [1]
+        raise Exception("Missing k_values_mfcc value at modular_feat_extr function")
     if k_values_frame is None:
         k_values_frame = [-1]
     if k_values_segment is None:
@@ -111,8 +111,10 @@ def modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k
     le = LabelEncoder()
 
     # Calculate the amount of iterations that feature extraction has to go through
-    if k_values_frame == [-1] or k_values_segment == [-1]:
-        total_iterations = 0
+    if k_values_frame == [-1]:
+        total_iterations = len(k_values_mfcc)
+    elif k_values_segment == [-1]:
+        total_iterations = len(k_values_mfcc) * len(k_values_frame)
     else:
         total_iterations = len(k_values_mfcc) * len(k_values_frame) * len(k_values_segment)
     current_iteration = 0
@@ -124,7 +126,7 @@ def modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k
         # Feature Extraction Initialization with one method and one hyperparameter
         if k_values_frame == [-1]:
             # Name of the directory and file where the features will be saved
-            features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
+            features_folder = data_dir_choice + "_program/extracted_features/feat_extr_simple"
 
             # Check if the directory exists, if not, create it
             if not os.path.exists(features_folder):
@@ -178,7 +180,7 @@ def modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k
                 # Feature Extraction Initialization with four methods and two hyperparameters
                 if k_values_segment == [-1]:
                     # Name of the directory and file where the features will be saved
-                    features_folder = data_dir_choice + "/extracted_features/feat_extr"
+                    features_folder = data_dir_choice + "_program/extracted_features/feat_extr"
 
                     # Check if the directory exists, if not, create it
                     if not os.path.exists(features_folder):
@@ -232,7 +234,7 @@ def modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k
                         # Feature Extraction Initialization with four methods and three hyperparameters
 
                         # Name of the directory and file where the features will be saved
-                        features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
+                        features_folder = data_dir_choice + "_program/extracted_features/feat_extr_with_segm"
 
                         # Check if the directory exists, if not, create it
                         if not os.path.exists(features_folder):
@@ -330,7 +332,7 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
             # Feature Extraction Initialization Loading with one method and one hyperparameter
             if k_values_frame == [-1]:
                 # Name of the directory and file where the features will be saved
-                features_folder = data_dir_choice + "/extracted_features/feat_extr_simple"
+                features_folder = data_dir_choice + "_program/extracted_features/feat_extr_simple"
 
                 # Check if the directory exists
                 if not os.path.exists(features_folder):
@@ -362,7 +364,7 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
                     # Feature Extraction Initialization Loading with four methods and two hyperparameters
                     if k_values_segment == [-1]:
                         # Name of the directory and file where the features will be saved
-                        features_folder = data_dir_choice + "/extracted_features/feat_extr"
+                        features_folder = data_dir_choice + "_program/extracted_features/feat_extr"
 
                         # Check if the directory exists
                         if not os.path.exists(features_folder):
@@ -393,7 +395,7 @@ def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None
 
                             # Feature Extraction Initialization Loading with four methods and three hyperparameters
                             # Name of the directory and file where the features will be saved
-                            features_folder = data_dir_choice + "/extracted_features/feat_extr_with_segm"
+                            features_folder = data_dir_choice + "_program/extracted_features/feat_extr_with_segm"
 
                             # Check if the directory exists
                             if not os.path.exists(features_folder):
@@ -1362,7 +1364,7 @@ def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_ide
             print("Current Iteration Results")
             print(parameters_df.iloc[-1])
 
-            metrics_folder = "./" + data_dir_choice + "/model_metrics"
+            metrics_folder = "./" + data_dir_choice + "_program/model_metrics"
 
             # Check if the directory exists, if not, create it
             if not os.path.exists(metrics_folder):
@@ -1383,7 +1385,7 @@ def save_iteration_csv(results_df, models_used_str, parameters_df, iteration_ide
             parameters_df = pd.concat([parameters_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])], ignore_index=True)
 
             # Save the expanded DataFrame to a CSV file
-            parameters_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + str(iteration_identifier) + '.csv', index=False)
+            parameters_df.to_csv('./' + data_dir_choice + '_program/model_metrics/my_dataframe_expanded_' + str(iteration_identifier) + '.csv', index=False)
 
             print("Iteration saved")
 
@@ -1413,7 +1415,7 @@ def results_display(results_df, models_used_str, parameters_df):
             # Join the new columns back with the expanded_results_df DataFrame
             parameters_df = pd.concat([parameters_df, array_df], axis=1)
 
-            metrics_folder = "./" + data_dir_choice + "/model_metrics"
+            metrics_folder = "./" + data_dir_choice + "_program/model_metrics"
 
             # Check if the directory exists, if not, create it
             if not os.path.exists(metrics_folder):
@@ -1434,7 +1436,7 @@ def results_display(results_df, models_used_str, parameters_df):
             parameters_df = pd.concat([parameters_df, first_blank_row, second_blank_row, pd.DataFrame([max_row])], ignore_index=True)
 
             # Save the expanded DataFrame to a CSV file
-            parameters_df.to_csv('./' + data_dir_choice + '/model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
+            parameters_df.to_csv('./' + data_dir_choice + '_program/model_metrics/my_dataframe_expanded_' + current_date + '.csv', index=False)
 
 try:
     modular_model_training()
