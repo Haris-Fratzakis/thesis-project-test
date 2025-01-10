@@ -129,7 +129,7 @@ def feat_extr_with_segm_init(data_dir):
                     features = np.load(feature_filename)
                 else:
                     # Extract features because they don't exist
-                    features = np.array([feat_extr.extract_features_with_segments(data_dir, row.participantid, row.submissionid, n_mfcc, frame_size, hop_length, n_segments) for idx, row in data.iterrows()])
+                    features = np.array([feat_extr.thesis_extract_features_with_segments(data_dir, row.participantid, row.submissionid, n_mfcc, frame_size, hop_length, n_segments) for idx, row in data.iterrows()])
                     # Save the extracted features to the file for future use
                     np.save(feature_filename, features)
 

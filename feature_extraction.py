@@ -77,7 +77,7 @@ def pad_or_truncate(features, target_length):
 
 
 # Feature extraction function with four methods and three hyperparameters
-def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop_length, frame_size, n_segments):
+def thesis_extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop_length, frame_size, n_segments):
     file_path = os.path.join(data_dir, audio_path, audio_name)
     # Check if the audio file is empty
     if os.path.exists(file_path):
@@ -200,3 +200,138 @@ def extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop
             print("No segment features")
             return False
     return False
+
+
+def updated_pipeline_extract_features(data_dir, audio_path, audio_name, n_mfcc, hop_length, frame_size):
+    # Based on the primary features of this paper
+    # https://www.sciencedirect.com/science/article/pii/S2352914819304071
+
+    file_path = os.path.join(data_dir, audio_path, audio_name)
+    # Check if the audio file is empty
+    if os.path.exists(file_path):
+        if os.path.getsize(file_path) <= 2048:
+            print("Filepath with tiny size: ", file_path)
+            return False
+
+        audio, sample_rate = librosa.load(file_path)
+
+        # Get non-silent intervals
+        # Any region below top_db is considered silence (default 30)
+        top_db = 30
+        intervals = librosa.effects.split(y=audio, top_db=top_db)
+
+        # Merging the intervals that are separated by tiny silence intervals
+        # silence_interval_thr = 0.2 (0.2 seconds)
+        silence_interval_thr = 0.2
+        silence_interval_thr_sr = int(silence_interval_thr*sample_rate)     # The intervals are in frames not seconds
+
+        merged_intervals = []
+        if len(intervals) > 0:
+            prev_start, prev_end = intervals[0]
+
+            # Loop over all the intervals and merge the appropriate ones
+            for i in range(1, len(intervals)):
+                current_start, current_end = intervals[i]
+                # If there is a tiny silence interval, merge the two intervals
+                if (current_start - prev_end) < silence_interval_thr_sr:
+                    # Replace the previous interval end with the next one, to encompass both
+                    prev_end = current_end
+                else:
+                    # Otherwise, save the old interval and check the next one
+                    merged_intervals.append((prev_start, prev_end))
+                    prev_start, prev_end = current_start, current_end
+
+            # Save the final interval
+            merged_intervals.append((prev_start, prev_end))
+        else:
+            merged_intervals = intervals  # no intervals found
+
+        # In case there are noise intervals, really short intervals are discarded
+        # min_duration_thr = 0.05 (0.05 seconds)
+        min_duration_thr = 0.05
+        min_duration_thr_sr = int(min_duration_thr * sample_rate)
+
+        final_intervals = []
+        for (start, end) in merged_intervals:
+            if (end - start) >= min_duration_thr_sr:
+                final_intervals.append((start, end))
+
+        # Segments now only include non-silent significant intervals
+        segments = []
+        for (start, end) in intervals:
+            segment = audio[start:end]
+            segments.append(segment)
+
+        time_features = []
+        mean_agg_features = []
+        for idx, segment in enumerate(segments):
+            # MFCCs features
+            mfccs = librosa.feature.mfcc(y=segment, sr=sample_rate, n_mfcc=n_mfcc, n_fft=frame_size, hop_length=hop_length)
+
+            # Verify the MFCCs were extracted correctly
+            # print("MFCCs in segment " + str(i))
+            # print(mfccs)
+            if np.isnan(mfccs).any():
+                print("NaN Values for MFCCs for filepath: ", file_path)
+                print("NaN MFCCs: ", mfccs)
+
+            # Spectral Centroid feature
+            sc = librosa.feature.spectral_centroid(y=segment, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
+
+            # Verify the SC was extracted correctly
+            # print("SC in segment " + str(i))
+            # print(sc)
+            if np.isnan(sc).any():
+                print("NaN Values for SC for filepath: ", file_path)
+                print("NaN SC: ", sc)
+
+            # Spectral Roll-off feature
+            sr = librosa.feature.spectral_rolloff(y=segment, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
+
+            # Verify the SR was extracted correctly
+            # print("SR in segment " + str(i))
+            # print(sr)
+            if np.isnan(sr).any():
+                print("NaN Values for SR for filepath: ", file_path)
+                print("NaN SR: ", sr)
+
+            # Spectral Bandwidth feature
+            sb = librosa.feature.spectral_bandwidth(y=segment, sr=sample_rate, n_fft=frame_size, hop_length=hop_length)
+
+            # Verify the SB was extracted correctly
+            # print("SB in segment " + str(i))
+            # print(sb)
+            if np.isnan(sb).any():
+                print("NaN Values for SB for filepath: ", file_path)
+                print("NaN SB: ", sb)
+
+            # Zero-crossing rate feature
+            zcr = librosa.feature.zero_crossing_rate(y=segment, frame_length=frame_size, hop_length=hop_length)
+
+            # Verify the ZCR was extracted correctly
+            # print("ZCR in segment " + str(i))
+            # print(zcr)
+            if np.isnan(zcr).any():
+                print("NaN Values for ZCR for filepath: ", file_path)
+                print("NaN ZCR: ", zcr)
+
+            # Root Mean Square energy feature
+            rms = librosa.feature.rms(y=segment, frame_length=frame_size, hop_length=hop_length)
+
+            # Verify the RMS was extracted correctly
+            # print("RMS in segment " + str(i))
+            # print(rms)
+            if np.isnan(rms).any():
+                print("NaN Values for RMS for filepath: ", file_path)
+                print("NaN RMS: ", rms)
+
+            # Add all features in one feature array, saving their time dimension for the complex models
+            time_features.append(np.concatenate([mfccs, sc, sr, sb, zcr, rms], axis=0))
+
+            # Aggregate the features with the mean feature across time for the simpler models
+            mean_agg_features.append(np.mean(time_features, axis=1))
+
+        # No padding or truncating for now, will be added back if necessary
+        return time_features, mean_agg_features
+    else:
+        return False

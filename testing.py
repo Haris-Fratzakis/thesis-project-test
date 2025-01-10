@@ -265,7 +265,7 @@ def modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k
                                     path_part_2 = row.submissionid
                                     audio_path = os.path.join(path_part_1, path_part_2)
                                     audio_name = "audio.cough.mp3"
-                                feat = feat_extr.extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length, n_segments)
+                                feat = feat_extr.thesis_extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length, n_segments)
                                 if feat is not False:
                                     features_list.append(feat)
                                     successful_indices.append(idx)
