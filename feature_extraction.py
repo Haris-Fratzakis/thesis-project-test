@@ -1,7 +1,7 @@
 import os
 import librosa
 import numpy as np
-from scipy.stats import mode
+from scipy.stats import mode, skew, kurtosis
 
 # Feature Extraction Methods Used:
 #   Mel Frequency Cepstral Coefficients(MFCCs)
@@ -77,7 +77,7 @@ def pad_or_truncate(features, target_length):
 
 
 # Feature extraction function with four methods and three hyperparameters
-def thesis_extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, hop_length, frame_size, n_segments):
+def thesis_extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length, n_segments):
     file_path = os.path.join(data_dir, audio_path, audio_name)
     # Check if the audio file is empty
     if os.path.exists(file_path):
@@ -202,7 +202,7 @@ def thesis_extract_features_with_segments(data_dir, audio_path, audio_name, n_mf
     return False
 
 
-def updated_pipeline_extract_features(data_dir, audio_path, audio_name, n_mfcc, hop_length, frame_size):
+def updated_pipeline_extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length):
     # Based on the primary features of this paper
     # https://www.sciencedirect.com/science/article/pii/S2352914819304071
 
@@ -262,8 +262,8 @@ def updated_pipeline_extract_features(data_dir, audio_path, audio_name, n_mfcc, 
             segment = audio[start:end]
             segments.append(segment)
 
-        time_features = []
-        mean_agg_features = []
+        # time_features = []
+        first_level_agg_features = []
         for idx, segment in enumerate(segments):
             # MFCCs features
             mfccs = librosa.feature.mfcc(y=segment, sr=sample_rate, n_mfcc=n_mfcc, n_fft=frame_size, hop_length=hop_length)
@@ -326,12 +326,24 @@ def updated_pipeline_extract_features(data_dir, audio_path, audio_name, n_mfcc, 
                 print("NaN RMS: ", rms)
 
             # Add all features in one feature array, saving their time dimension for the complex models
-            time_features.append(np.concatenate([mfccs, sc, sr, sb, zcr, rms], axis=0))
+            temp_time_features = np.concatenate([mfccs, sc, sr, sb, zcr, rms], axis=0)
+            # time_features.append(temp_time_features)
 
-            # Aggregate the features with the mean feature across time for the simpler models
-            mean_agg_features.append(np.mean(time_features, axis=1))
+            # First level aggregation across time for each segment with multiple statistics analysis
+            mean_val = np.mean(temp_time_features, axis=1)
+            std_val = np.std(temp_time_features, axis=1)
+            min_val = np.min(temp_time_features, axis=1)
+            max_val = np.max(temp_time_features, axis=1)
+            skew_val = skew(temp_time_features, axis=1)
+            kurt_val = kurtosis(temp_time_features, axis=1)
+
+            # Concatenate into one vector
+            segment_agg_features = np.concatenate([mean_val, std_val, min_val, max_val, skew_val, kurt_val])
+
+            first_level_agg_features.append(segment_agg_features)
 
         # No padding or truncating for now, will be added back if necessary
-        return time_features, mean_agg_features
+        return first_level_agg_features
     else:
+        # print("Empty Audio Path:", file_path)
         return False

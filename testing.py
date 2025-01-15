@@ -1,4 +1,6 @@
 import os
+import traceback
+
 import pandas as pd
 import numpy as np
 from scipy.stats import mode
@@ -12,6 +14,8 @@ from datetime import datetime
 
 import feature_extraction as feat_extr
 import training
+
+# os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 # Adding a directory choice to manage the name of each dataset
 # Changing Dataset is done by changing this variable
@@ -56,12 +60,11 @@ def modular_model_training():
     # k_values_frame = [8, 9, 10, 11, 12]
     # k_values_segment = [5, 7, 10, 12, 15]
 
-    k_values_mfcc = [5]
-    k_values_frame = [12]
-    k_values_segment = [15]
+    k_values_mfcc = [1]
+    k_values_frame = [8]
+    # k_values_segment = [15]
 
-    modular_feat_extr(data=data, data_dir=data_dir, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
-                      k_values_segment=k_values_segment)
+    updated_pipeline_feat_extr(data=data, data_dir=data_dir, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame)
 
     # models_used signifies which model is used, each slot signifies a different model
     # 1 means model is going to be used, 0 means it will not be used
@@ -69,12 +72,10 @@ def modular_model_training():
     models_used = [0, 0, 0, 1, 0, 0]
     test_size = [0.2]
     # This is the modular classifier training stage
-    results_df, parameters_df = modular_classifier(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame,
-                                                   k_values_segment=k_values_segment, models_used=models_used,
-                                                   test_size=test_size)
+    # results_df, parameters_df = modular_classifier(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used, test_size=test_size)
 
-    models_used = models_used_name_converter(models_used)
-    results_display(results_df, models_used, parameters_df)
+    # models_used = models_used_name_converter(models_used)
+    # results_display(results_df, models_used, parameters_df)
 
 
 # Function that converts models_used values to their names
@@ -100,9 +101,9 @@ def pad_or_truncate(features, target_length):
 
 
 # Function for feature extraction initialization
-def modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k_values_segment=None):
+def thesis_modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k_values_segment=None):
     if k_values_mfcc is None:
-        raise Exception("Missing k_values_mfcc value at modular_feat_extr function")
+        raise Exception("Missing k_values_mfcc value at thesis_modular_feat_extr function")
     if k_values_frame is None:
         k_values_frame = [-1]
     if k_values_segment is None:
@@ -303,6 +304,77 @@ def modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k
                             np.save(feature_filename, features)
                             np.save(label_filename, labels)
 
+
+def updated_pipeline_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None):
+    if k_values_mfcc is None:
+        raise Exception("Missing k_values_mfcc value at updated_pipeline_feat_extr function")
+    if k_values_frame is None:
+        raise Exception("Missing k_values_frame value at updated_pipeline_feat_extr function")
+
+    le = LabelEncoder()
+
+    # Calculate the amount of iterations that feature extraction has to go through
+    total_iterations = len(k_values_mfcc) * len(k_values_frame)
+    current_iteration = 0
+
+    # Loop over all combinations of hyperparameters
+    for k_mfcc in k_values_mfcc:
+        n_mfcc = 14 * k_mfcc
+
+        for k_frame in k_values_frame:
+            frame_size = 2 ** k_frame
+            hop_length = frame_size // 2  # 50% overlap
+
+            current_iteration += 1
+            print("Feature Extraction Iteration " + str(current_iteration) + "/" + str(total_iterations))
+
+            # Feature Extraction Initialization with six methods and two hyperparameters
+
+            # Name of the directory and file where the features will be saved
+            features_folder = data_dir_choice + "_program/extracted_features/upd_pipeline_feat_extr"
+
+            # Check if the directory exists, if not, create it
+            if not os.path.exists(features_folder):
+                os.makedirs(features_folder)
+
+            feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
+            label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
+            feature_filename = os.path.join(features_folder, feature_filename_target)
+            label_filename = os.path.join(features_folder, label_filename_target)
+
+            successful_indices = []
+            mean_second_lv_agg_features_list = []
+
+            # Check if the file doesn't exist (so it doesn't repeat over extracted features from an identical previous iteration)
+            if not os.path.exists(feature_filename):
+                # Extract features and simultaneously filter labels
+                for idx, row in data.iterrows():
+                    if data_dir_choice == "smarty4covid":
+                        path_part_1 = row.participantid
+                        path_part_2 = row.submissionid
+                        audio_path = os.path.join(path_part_1, path_part_2)
+                        audio_name = "audio.cough.mp3"
+                    elif data_dir_choice == "coswara":
+                        audio_path = row.id
+                        audio_name = "cough-heavy.wav"
+                    else:
+                        raise Exception("Unknown dataset structure in updated_pipeline_feat_extr")
+                    first_level_agg_features = feat_extr.updated_pipeline_extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length)
+                    if first_level_agg_features is not False:
+                        mean_second_lv_agg_features = np.mean(first_level_agg_features, axis=0)
+                        mean_second_lv_agg_features_list.append(mean_second_lv_agg_features)
+                        successful_indices.append(idx)
+
+                features = np.array(mean_second_lv_agg_features_list)
+
+                # Filter labels based on successful feature extraction
+                labels = np.array(data.loc[successful_indices, 'covid_status'])
+
+                # Convert labels to a consistent numerical format
+                labels = le.fit_transform(labels)
+
+                np.save(feature_filename, features)
+                np.save(label_filename, labels)
 
 # Function for the modular classifier
 def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None, models_used=None, test_size=None):
@@ -1443,3 +1515,6 @@ try:
 except Exception as E:
     print("A problem was found")
     print(E)
+    print(traceback.format_exc())
+
+# modular_model_training()
