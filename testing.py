@@ -53,16 +53,14 @@ def modular_model_training():
     # Modular feature extraction stage
 
     # Hyperparameter values based on:
-    # Preliminary diagnosis of COVID-19 based on cough sounds using machine learning algorithms
-    # https://ieeexplore.ieee.org/abstract/document/9432324
+    # Cough sound analysis and objective correlation with spirometry and clinical diagnosis
+    # https://www.sciencedirect.com/science/article/pii/S2352914819304071
     # Full list of parameters below
     # k_values_mfcc = [1, 2, 3, 4, 5]
     # k_values_frame = [8, 9, 10, 11, 12]
-    # k_values_segment = [5, 7, 10, 12, 15]
 
     k_values_mfcc = [1]
     k_values_frame = [8]
-    # k_values_segment = [15]
 
     updated_pipeline_feat_extr(data=data, data_dir=data_dir, k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame)
 
@@ -72,7 +70,7 @@ def modular_model_training():
     models_used = [0, 0, 0, 1, 0, 0]
     test_size = [0.2]
     # This is the modular classifier training stage
-    # results_df, parameters_df = modular_classifier(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used, test_size=test_size)
+    # results_df, parameters_df = thesis_modular_classifier(k_values_mfcc=k_values_mfcc, k_values_frame=k_values_frame, k_values_segment=k_values_segment, models_used=models_used, test_size=test_size)
 
     # models_used = models_used_name_converter(models_used)
     # results_display(results_df, models_used, parameters_df)
@@ -100,211 +98,7 @@ def pad_or_truncate(features, target_length):
         return features
 
 
-# Function for feature extraction initialization
-def thesis_modular_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None, k_values_segment=None):
-    if k_values_mfcc is None:
-        raise Exception("Missing k_values_mfcc value at thesis_modular_feat_extr function")
-    if k_values_frame is None:
-        k_values_frame = [-1]
-    if k_values_segment is None:
-        k_values_segment = [-1]
-
-    le = LabelEncoder()
-
-    # Calculate the amount of iterations that feature extraction has to go through
-    if k_values_frame == [-1]:
-        total_iterations = len(k_values_mfcc)
-    elif k_values_segment == [-1]:
-        total_iterations = len(k_values_mfcc) * len(k_values_frame)
-    else:
-        total_iterations = len(k_values_mfcc) * len(k_values_frame) * len(k_values_segment)
-    current_iteration = 0
-
-    # Loop over all combinations of hyperparameters
-    for k_mfcc in k_values_mfcc:
-        n_mfcc = 14 * k_mfcc
-
-        # Feature Extraction Initialization with one method and one hyperparameter
-        if k_values_frame == [-1]:
-            # Name of the directory and file where the features will be saved
-            features_folder = data_dir_choice + "_program/extracted_features/feat_extr_simple"
-
-            # Check if the directory exists, if not, create it
-            if not os.path.exists(features_folder):
-                os.makedirs(features_folder)
-
-            # Create the filename
-            feature_filename_target = "extracted_features_" + str(k_mfcc) + ".npy"
-            label_filename_target = "extracted_labels_" + str(k_mfcc) + ".npy"
-            feature_filename = os.path.join(features_folder, feature_filename_target)
-            label_filename = os.path.join(features_folder, label_filename_target)
-
-            successful_indices = []
-            features_list = []
-
-            # Check if the file doesn't exist (so it doesn't repeat over extracted features from an identical previous iteration)
-            if not os.path.exists(feature_filename):
-                # Extract features and simultaneously filter labels
-                for idx, row in data.iterrows():
-                    if data_dir_choice == "smarty4covid":
-                        path_part_1 = row.participantid
-                        path_part_2 = row.submissionid
-                        audio_path = os.path.join(path_part_1, path_part_2)
-                        audio_name = "audio.cough.mp3"
-                    elif data_dir_choice == "coswara":
-                        audio_path = row.id
-                        audio_name = "cough-heavy.wav"
-                    else:
-                        path_part_1 = row.participantid
-                        path_part_2 = row.submissionid
-                        audio_path = os.path.join(path_part_1, path_part_2)
-                        audio_name = "audio.cough.mp3"
-                    feat = feat_extr.extract_features_simple(data_dir, audio_path, audio_name, n_mfcc)
-                    if feat is not False:
-                        features_list.append(feat)
-                        successful_indices.append(idx)
-                features = np.array(features_list)
-
-                # Filter labels based on successful feature extraction
-                labels = np.array(data.loc[successful_indices, 'covid_status'])
-
-                # Convert labels to a consistent numerical format
-                labels = le.fit_transform(labels)
-
-                np.save(feature_filename, features)
-                np.save(label_filename, labels)
-        else:
-            for k_frame in k_values_frame:
-                frame_size = 2 ** k_frame
-                hop_length = frame_size // 2  # 50% overlap
-
-                # Feature Extraction Initialization with four methods and two hyperparameters
-                if k_values_segment == [-1]:
-                    # Name of the directory and file where the features will be saved
-                    features_folder = data_dir_choice + "_program/extracted_features/feat_extr"
-
-                    # Check if the directory exists, if not, create it
-                    if not os.path.exists(features_folder):
-                        os.makedirs(features_folder)
-
-                    feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
-                    label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
-                    feature_filename = os.path.join(features_folder, feature_filename_target)
-                    label_filename = os.path.join(features_folder, label_filename_target)
-
-                    successful_indices = []
-                    features_list = []
-
-                    # Check if the file doesn't exist (so it doesn't repeat over extracted features from an identical previous iteration)
-                    if not os.path.exists(feature_filename):
-                        # Extract features and simultaneously filter labels
-                        for idx, row in data.iterrows():
-                            if data_dir_choice == "smarty4covid":
-                                path_part_1 = row.participantid
-                                path_part_2 = row.submissionid
-                                audio_path = os.path.join(path_part_1, path_part_2)
-                                audio_name = "audio.cough.mp3"
-                            elif data_dir_choice == "coswara":
-                                audio_path = row.id
-                                audio_name = "cough-heavy.wav"
-                            else:
-                                path_part_1 = row.participantid
-                                path_part_2 = row.submissionid
-                                audio_path = os.path.join(path_part_1, path_part_2)
-                                audio_name = "audio.cough.mp3"
-                            feat = feat_extr.extract_features(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length)
-                            if feat is not False:
-                                features_list.append(feat)
-                                successful_indices.append(idx)
-                        features = np.array(features_list)
-
-                        # Filter labels based on successful feature extraction
-                        labels = np.array(data.loc[successful_indices, 'covid_status'])
-                        # Convert labels to a consistent numerical format
-                        labels = le.fit_transform(labels)
-
-                        np.save(feature_filename, features)
-                        np.save(label_filename, labels)
-                else:
-                    for k_segment in k_values_segment:
-                        n_segments = 10 * k_segment
-
-                        current_iteration += 1
-                        print("Feature Extraction Iteration " + str(current_iteration) + "/" + str(total_iterations))
-
-                        # Feature Extraction Initialization with four methods and three hyperparameters
-
-                        # Name of the directory and file where the features will be saved
-                        features_folder = data_dir_choice + "_program/extracted_features/feat_extr_with_segm"
-
-                        # Check if the directory exists, if not, create it
-                        if not os.path.exists(features_folder):
-                            os.makedirs(features_folder)
-
-                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
-                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(k_segment) + ".npy"
-                        feature_filename = os.path.join(features_folder, feature_filename_target)
-                        label_filename = os.path.join(features_folder, label_filename_target)
-
-                        successful_indices = []
-                        features_list = []
-
-                        # Check if the file doesn't exist (so it doesn't repeat over extracted features from an identical previous iteration)
-                        if not os.path.exists(feature_filename):
-                            # Extract features and simultaneously filter labels
-                            for idx, row in data.iterrows():
-                                if data_dir_choice == "smarty4covid":
-                                    path_part_1 = row.participantid
-                                    path_part_2 = row.submissionid
-                                    audio_path = os.path.join(path_part_1, path_part_2)
-                                    audio_name = "audio.cough.mp3"
-                                elif data_dir_choice == "coswara":
-                                    audio_path = row.id
-                                    audio_name = "cough-heavy.wav"
-                                else:
-                                    path_part_1 = row.participantid
-                                    path_part_2 = row.submissionid
-                                    audio_path = os.path.join(path_part_1, path_part_2)
-                                    audio_name = "audio.cough.mp3"
-                                feat = feat_extr.thesis_extract_features_with_segments(data_dir, audio_path, audio_name, n_mfcc, frame_size, hop_length, n_segments)
-                                if feat is not False:
-                                    features_list.append(feat)
-                                    successful_indices.append(idx)
-
-                            # Check if all features have the same shape
-                            shapes = [f.shape for f in features_list]
-                            unique_shapes = set(shapes)
-                            for shape in unique_shapes:
-                                print(f"Shape: {shape}, Count: {shapes.count(shape)}")
-                            if len(unique_shapes) > 1:
-                                print("Inconsistent shapes found in features_list:")
-                                for shape in unique_shapes:
-                                    print(f"Shape: {shape}, Count: {shapes.count(shape)}")
-
-                                lengths = [len(f) for f in features_list]
-
-                                # Check if there are different size vectors
-                                most_common_length_result = mode(lengths)
-                                if isinstance(most_common_length_result.mode, np.ndarray):
-                                    most_common_length = most_common_length_result.mode[0]
-                                else:
-                                    most_common_length = most_common_length_result.mode
-
-                                # Shape all features vectors to use the most common length
-                                target_length = most_common_length
-                                features_list = [pad_or_truncate(f, target_length) for f in features_list]
-                            features = np.array(features_list)
-
-                            # Filter labels based on successful feature extraction
-                            labels = np.array(data.loc[successful_indices, 'covid_status'])
-
-                            # Convert labels to a consistent numerical format
-                            labels = le.fit_transform(labels)
-
-                            np.save(feature_filename, features)
-                            np.save(label_filename, labels)
-
-
+# Function for the pipeline for feature extraction
 def updated_pipeline_feat_extr(data, data_dir, k_values_mfcc=None, k_values_frame=None):
     if k_values_mfcc is None:
         raise Exception("Missing k_values_mfcc value at updated_pipeline_feat_extr function")
@@ -377,130 +171,58 @@ def updated_pipeline_feat_extr(data, data_dir, k_values_mfcc=None, k_values_fram
                 np.save(label_filename, labels)
 
 # Function for the modular classifier
-def modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None, models_used=None, test_size=None):
+def updated_pipeline_modular_classifier(k_values_mfcc, k_values_frame=None, k_values_segment=None, models_used=None, test_size=None):
     if k_values_mfcc is None:
-        k_values_mfcc = [1]
+        raise Exception("Missing k_values_mfcc value at updated_pipeline_modular_classifier function")
     if k_values_frame is None:
-        k_values_frame = [-1]
-    if k_values_segment is None:
-        k_values_segment = [-1]
+        raise Exception("Missing k_values_frame value at updated_pipeline_modular_classifier function")
     if models_used is None:
-        models_used = [0, 0, 0, 0, 0, 0]
+        raise Exception("Missing models_used value at updated_pipeline_modular_classifier function")
     if test_size is None:
-        k_values_segment = [0.2]
+        raise Exception("Missing test_size value at updated_pipeline_modular_classifier function")
 
     # Initialize a list for storing the results
     results = []
     parameters = []
 
-    total_iterations = len(k_values_mfcc) * len(k_values_frame) * len(k_values_segment) * len(test_size)
+    total_iterations = len(k_values_mfcc) * len(k_values_frame) * len(k_values_segment)
     current_iteration = 0
     iteration_identifier = random_state_global_value
+
     # Loop over all combinations of hyperparameters
-    for test_size_val in test_size:
-        for k_mfcc in k_values_mfcc:
-            n_mfcc = 14 * k_mfcc
+    for k_mfcc in k_values_mfcc:
+        n_mfcc = 14 * k_mfcc
 
-            # Feature Extraction Initialization Loading with one method and one hyperparameter
-            if k_values_frame == [-1]:
-                # Name of the directory and file where the features will be saved
-                features_folder = data_dir_choice + "_program/extracted_features/feat_extr_simple"
+        for k_frame in k_values_frame:
+            frame_size = 2 ** k_frame
 
-                # Check if the directory exists
-                if not os.path.exists(features_folder):
-                    print("Error, data mismatch, features folder doesn't exist in test classifier")
+            # Feature Extraction Initialization Loading with six methods and two hyperparameters
+            # Name of the directory and file where the features will be saved
+            features_folder = data_dir_choice + "_program/extracted_features/feat_extr_with_segm"
 
-                feature_filename_target = "extracted_features_" + str(k_mfcc) + ".npy"
-                label_filename_target = "extracted_labels_" + str(k_mfcc) + ".npy"
-                feature_filename = os.path.join(features_folder, feature_filename_target)
-                label_filename = os.path.join(features_folder, label_filename_target)
+            # Check if the directory exists
+            if not os.path.exists(features_folder):
+                raise Exception("Error, data mismatch, features folder doesn't exist in test classifier")
 
-                # Check if the file doesn't exist
-                if os.path.exists(feature_filename):
-                    features = np.load(feature_filename)
-                    labels = np.load(label_filename)
+            feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
+            label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
+            feature_filename = os.path.join(features_folder, feature_filename_target)
+            label_filename = os.path.join(features_folder, label_filename_target)
 
-                    # Train and evaluate the different classifiers outlined in training.py
-                    current_iteration += 1
-                    print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
-                    run_res, run_param = training_classifier(features, labels, n_mfcc=n_mfcc, models_used=models_used, test_size=test_size_val)
-                    results.append(run_res)
-                    parameters.append(run_param)
-                    save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters), iteration_identifier)
-                else:
-                    print("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
+            # Check if the file doesn't exist
+            if os.path.exists(feature_filename):
+                features = np.load(feature_filename)
+                labels = np.load(label_filename)
+
+                # Train and evaluate the different classifiers outlined in training.py
+                current_iteration += 1
+                print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
+                run_res, run_param = updated_pipeline_training_classifier(features=features, labels=labels, n_mfcc=n_mfcc, frame_size=frame_size, models_used=models_used, test_size=test_size)
+                results.append(run_res)
+                parameters.append(run_param)
+                save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters), iteration_identifier)
             else:
-                for k_frame in k_values_frame:
-                    frame_size = 2 ** k_frame
-
-                    # Feature Extraction Initialization Loading with four methods and two hyperparameters
-                    if k_values_segment == [-1]:
-                        # Name of the directory and file where the features will be saved
-                        features_folder = data_dir_choice + "_program/extracted_features/feat_extr"
-
-                        # Check if the directory exists
-                        if not os.path.exists(features_folder):
-                            print("Error, data mismatch, features folder doesn't exist in test classifier")
-
-                        feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
-                        label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + ".npy"
-                        feature_filename = os.path.join(features_folder, feature_filename_target)
-                        label_filename = os.path.join(features_folder, label_filename_target)
-
-                        # Check if the file doesn't exist
-                        if os.path.exists(feature_filename):
-                            features = np.load(feature_filename)
-                            labels = np.load(label_filename)
-
-                            # Train and evaluate the different classifiers outlined in training.py
-                            current_iteration += 1
-                            print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
-                            run_res, run_param = training_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size, models_used=models_used, test_size=test_size_val)
-                            results.append(run_res)
-                            parameters.append(run_param)
-                            save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters), iteration_identifier)
-                        else:
-                            print("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
-                    else:
-                        for k_segment in k_values_segment:
-                            n_segments = 10 * k_segment
-
-                            # Feature Extraction Initialization Loading with four methods and three hyperparameters
-                            # Name of the directory and file where the features will be saved
-                            features_folder = data_dir_choice + "_program/extracted_features/feat_extr_with_segm"
-
-                            # Check if the directory exists
-                            if not os.path.exists(features_folder):
-                                print("Error, data mismatch, features folder doesn't exist in test classifier")
-
-                            feature_filename_target = "extracted_features_" + str(k_mfcc) + "_" + str(
-                                k_frame) + "_" + str(
-                                k_segment) + ".npy"
-                            label_filename_target = "extracted_labels_" + str(k_mfcc) + "_" + str(k_frame) + "_" + str(
-                                k_segment) + ".npy"
-                            feature_filename = os.path.join(features_folder, feature_filename_target)
-                            label_filename = os.path.join(features_folder, label_filename_target)
-
-                            # Check if the file doesn't exist
-                            if os.path.exists(feature_filename):
-                                features = np.load(feature_filename)
-                                labels = np.load(label_filename)
-
-                                # Train and evaluate the different classifiers outlined in training.py
-                                current_iteration += 1
-                                print("Iteration " + str(current_iteration) + "/" + str(total_iterations))
-                                run_res, run_param = training_classifier(features, labels, n_mfcc=n_mfcc, frame_size=frame_size, n_segments=n_segments, models_used=models_used, test_size=test_size_val)
-                                results.append(run_res)
-                                parameters.append(run_param)
-                                save_iteration_csv(pd.DataFrame(results), models_used_name_converter(models_used), pd.DataFrame(parameters), iteration_identifier)
-                            else:
-                                print("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
-
-    # After the loop convert results to a DataFrame
-    results_df = pd.DataFrame(results)
-    parameters_df = pd.DataFrame(parameters)
-    return results_df, parameters_df
-
+                raise Exception("Error, data mismatch, features and labels data don't exist in features folder in test classifier")
 
 # Function for balancing the dataset NOT USED ANYMORE
 def balance_dataset(features, labels, balance_method, oversampling_rate=0.6):
@@ -746,9 +468,51 @@ def custom_scaler(features, scaler_type):
         print("standardized_data.shape: ", np_standardized_data.shape)
         return np_standardized_data
 
+# Function that splits the dataset into train and test groups
+def custom_train_test_split(features_pca, labels_cleaned, test_size):
+    # Separate the data by class
+    class_0_indices = np.where(labels_cleaned == 0)[0]
+    class_1_indices = np.where(labels_cleaned == 1)[0]
+    print("class_0_indices: ", len(class_0_indices))
+    print("class_1_indices: ", len(class_1_indices))
+
+    # Calculate the number of samples to be included in the test set for each class
+    n_samples = int(len(labels_cleaned) * test_size // 2)
+
+    # Randomly sample indices for the test set
+    test_class_0_indices = np.random.choice(class_0_indices, size=n_samples, replace=False)
+    test_class_1_indices = np.random.choice(class_1_indices, size=n_samples, replace=False)
+    print("test_class_0_indices: ", len(test_class_0_indices))
+    print("test_class_1_indices: ", len(test_class_1_indices))
+
+    # Combine test indices
+    test_indices = np.concatenate([test_class_0_indices, test_class_1_indices])
+    # print("test_indices: ", np.sort(test_indices))
+    print("test_indices len: ", len(test_indices))
+
+    # Create the test set
+    x_test = features_pca[test_indices]
+    y_test = labels_cleaned[test_indices]
+    # print("x_test[0]: ", x_test[0][:100])
+    # print("x_test[1]: ", x_test[1][:100])
+    # print("x_test[2]: ", x_test[2][:100])
+
+    # Create the train set by excluding the test set indices
+    train_indices = np.setdiff1d(np.arange(len(labels_cleaned)), test_indices)
+    # print("train_indices: ", train_indices[:20])
+    print("train_indices len: ", len(train_indices))
+
+    # Shuffle the train indices
+    # np.random.shuffle(train_indices)
+
+    # Index the training set
+    x_train = features_pca[train_indices]
+    y_train = labels_cleaned[train_indices]
+
+    return x_train, x_test, y_train, y_test
 
 # Function for training of the classifiers
-def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, models_used=None, test_size=0.2):
+def thesis_training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-1, models_used=None, test_size=0.2):
     if models_used is None:
         models_used = [0, 0, 0, 0, 0, 0]
         print("No model specified")
@@ -821,8 +585,6 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
     print("After PCA")
     print("features_pca: " + str(features_pca.shape))
     # print("features_pca[0]]: ", features_pca[0][10:100])
-
-    # Graph plots were used to verify the custom scaler worked correctly
 
     # Split dataset
     if train_test_split_method == "new_method":
@@ -1396,6 +1158,175 @@ def training_classifier(features, labels, n_mfcc=-1, frame_size=-1, n_segments=-
             parameters['Hyper_CNN__epochs'] = model_cnn_hyper["epochs"]
 
             results_model['performance_metrics_cnn'] = performance_metrics_cnn
+
+    return results_model, parameters
+
+# Function for the training of the classifiers
+def updated_pipeline_training_classifier(features, labels, n_mfcc=-1, frame_size=-1, models_used=None, test_size=0.2):
+    # Random_state case
+    random_state = random_state_global_value
+    if random_state is not None:
+        np.random.seed(random_state)
+
+    # Apply ensemble learning with majority class split
+    # Most balanced ensemble value is 5 with the new split method
+    dataset_splitting = 5
+
+    # Drop samples with NaN values in the dataset
+    print("Dataset before dropping: " + str(len(features)))
+    # print("features[0]]: ", features[0][:10])
+    # print("features[1]]: ", features[1][:10])
+    # print("features[2]]: ", features[2][:10])
+
+    # Create a mask for rows without NaN values
+    mask = ~np.isnan(features).any(axis=1)
+    if mask.any():
+        # print("NaN values found in x_test, dropping samples.")
+        pass
+
+    # Apply the mask to x_test and y_test
+    features_cleaned = features[mask]
+    labels_cleaned = labels[mask]
+
+    print("Dataset after dropping: " + str(len(features_cleaned)))
+    # print("features_cleaned[0]: ", features_cleaned[0][:10])
+    # print("features_cleaned[1]: ", features_cleaned[1][:10])
+    # print("features_cleaned[2]: ", features_cleaned[2][:10])
+
+    # Custom Scaler
+    # scaler_type choice
+    # Methods: "standard", "min_max"
+    scaler_type = "min_max"
+    features_scaled = custom_scaler(features_cleaned, scaler_type)
+
+    print("Scaling Dataset Complete")
+    print("Dataset after scaling: " + str(len(features_scaled)))
+    # print("features_scaled[0]]: ", features_scaled[0][10:100])
+    # print("features_scaled[1]]: ", features_scaled[1][:10])
+    # print("features_scaled[2]]: ", features_scaled[2][:10])
+
+    # Specify the amount of variance to retain in the datasets
+    variance_ratio = 0.95
+    pca = PCA(n_components=variance_ratio)
+    features_pca = pca.fit_transform(features_scaled)
+
+    print("After PCA")
+    print("features_pca: " + str(features_pca.shape))
+    # print("features_pca[0]]: ", features_pca[0][10:100])
+
+    # Split dataset
+    x_train, x_test, y_train, y_test = custom_train_test_split(features_pca, labels_cleaned, test_size)
+
+    print("After Split")
+    print("x_train size: " + str(len(x_train)))
+    print("x_test size: " + str(len(x_test)))
+    # print("x_train[0]: ", x_train[0][:10])
+    # print("x_train[1]: ", x_train[1][:10])
+    # print("x_train[2]: ", x_train[2][:10])
+    # print("x_test[0]: ", x_test[0][:10])
+    # print("x_test[1]: ", x_test[1][:10])
+    # print("x_test[2]: ", x_test[2][:10])
+
+    # Check Train Dataset Sample Distribution
+    class_0_sample_count = sum(y_train == 0)
+    class_1_sample_count = sum(y_train == 1)
+    print("Total Samples Train:", class_0_sample_count + class_1_sample_count)
+    print("Class 0:", class_0_sample_count)
+    print("Class 1:", class_1_sample_count)
+
+    # Check Test Dataset Sample Distribution
+    class_0_sample_count = sum(y_test == 0)
+    class_1_sample_count = sum(y_test == 1)
+    print("Total Samples Test:", class_0_sample_count + class_1_sample_count)
+    print("Class 0:", class_0_sample_count)
+    print("Class 1:", class_1_sample_count)
+
+    # Initialize results
+    parameters = {
+        'train_samples_number': str(len(x_train)),
+        'train_samples_reduced_number': str(len(x_train)),
+        'test_samples_number': str(len(x_test)),
+        'test_samples_reduced_number': str(len(x_test)),
+        'test_size %': test_size * 100,
+        'ensemble learning groups': dataset_splitting,
+        'mfcc': n_mfcc,
+        'frame_size': frame_size
+    }
+
+    results_model = {}
+
+    # Show iteration progress
+    print("mfcc: " + str(n_mfcc))
+    print("frame_size: " + str(frame_size))
+
+    # Classifier Voting Type
+    # Methods: "soft", "hard"
+    voting_type = "hard"
+
+    # Initialize all models
+    # LR Classifier
+    if models_used[0] == 1:
+        # lr_hyper refers to the hyperparameters for lr
+        # first slot is C, the regularization strength
+        # Syntax: [a,b,c], Usage: 'C': np.logspace(a, b, c)
+
+        lr_hyper = [[-7, 7, 15]]
+        # Split the dataset for ensemble learning
+        x_train_dataset_split, y_train_dataset_split = training_ensemble_split(x_train, y_train, dataset_splitting)
+
+        model_lr = []
+        model_lr_hyper = []
+
+        for i in range(dataset_splitting):
+            # Training the classifier
+            model_lr_temp, model_lr_hyper_temp = training.lr_training(x_train_dataset_split[i], y_train_dataset_split[i], lr_hyper, random_state)
+            model_lr.append(model_lr_temp)
+            model_lr_hyper.append(model_lr_hyper_temp)
+
+        estimators_temp = []
+        for i in range(dataset_splitting):
+            estimators_temp.append(('lr' + str(i + 1), model_lr[i]))
+
+        # Create a voting classifier
+        ensemble = VotingClassifier(estimators=estimators_temp, voting=voting_type)
+        ensemble.fit(x_test, y_test)
+
+        # Evaluating the classifier
+        if voting_type == "soft":
+            y_pred_proba = ensemble.predict_proba(x_test)[:, 1]
+            performance_metrics_lr = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+        elif voting_type == "hard":
+            y_pred = ensemble.predict(x_test)
+            performance_metrics_lr = training.evaluate_pred_model(y_test, y_pred)
+            performance_metrics_lr.append(0)
+        else:
+            raise Exception("Wrong Voting Type Detected")
+
+        # Access individual model predictions
+        for name, clf in ensemble.named_estimators_.items():
+            # Evaluating the classifier
+            if voting_type == "soft":
+                y_pred_proba = clf.predict_proba(x_test)[:, 1]
+                performance_metrics_lr_individual = training.evaluate_pred_proba_model(y_test, y_pred_proba)
+            elif voting_type == "hard":
+                y_pred = clf.predict(x_test)
+                performance_metrics_lr_individual = training.evaluate_pred_model(y_test, y_pred)
+            else:
+                raise Exception("Wrong Voting Type Detected")
+
+            print(f"Predictions from {name}:")
+            print("Specificity: " + str(performance_metrics_lr_individual[0]))
+            print("Sensitivity: " + str(performance_metrics_lr_individual[1]))
+            print("Precision: " + str(performance_metrics_lr_individual[2]))
+            print("Accuracy: " + str(performance_metrics_lr_individual[3]))
+            print("F1: " + str(performance_metrics_lr_individual[4]))
+            if voting_type == "soft":
+                print("AUC: " + str(performance_metrics_lr_individual[5]))
+
+        # Saving the best hyperparameters
+        # results_model['Hyper_LR__C'] = model_lr_hyper[0]["C"]
+        parameters["Hyper_LR__C"] = model_lr_hyper[0]["C"]
+        results_model['performance_metrics_lr'] = performance_metrics_lr
 
     return results_model, parameters
 
